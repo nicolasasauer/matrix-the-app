@@ -38,7 +38,7 @@ Das Spiel endet, wenn das Deck erschöpft ist. Gewonnen hat, wer die **wenigsten
 
 | Setup | Spielfeld | Scoreboard |
 |-------|-----------|------------|
-| Spieler hinzufügen | 5×5 Kartengitter | Rangliste nach Runde |
+| ![Setup-Screen](docs/screenshots/setup.png) | ![Spielfeld](docs/screenshots/game.png) | ![Scoreboard](docs/screenshots/scoreboard.png) |
 
 ---
 
