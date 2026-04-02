@@ -34,9 +34,14 @@ class PlayerInfoBar extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(
-                  'Calls: $callsInSet/3  |  Strafe: ${player.totalPenalty}🍺',
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                Row(
+                  children: [
+                    Text(
+                      'Calls: $callsInSet/3  |  Strafe: ${player.totalPenalty} ',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    const Icon(Icons.local_bar, color: Colors.white70, size: 13),
+                  ],
                 ),
               ],
             ),
