@@ -78,13 +78,22 @@ class _FailureBanner extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text(
-            '🃏 Haha, verkackt! 🃏',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.style, color: Colors.white, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Haha, verkackt!',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(width: 8),
+              Icon(Icons.style, color: Colors.white, size: 22),
+            ],
           ),
           if (card != null)
             Padding(
@@ -135,13 +144,20 @@ class _DecisionBanner extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Text(
-            '✅ ${provider.turnCalls} richtige Tipps!',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.check_circle, color: Colors.greenAccent, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                '${provider.turnCalls} richtige Tipps!',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
@@ -193,9 +209,18 @@ class _GameOverBanner extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Text(
-            '🎉 Spiel vorbei! 🎉',
-            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.celebration, color: Colors.yellow, size: 26),
+              SizedBox(width: 8),
+              Text(
+                'Spiel vorbei!',
+                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(width: 8),
+              Icon(Icons.celebration, color: Colors.yellow, size: 26),
+            ],
           ),
           const SizedBox(height: 12),
           ElevatedButton(
