@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Card;
 import 'package:provider/provider.dart';
 import '../domain/models.dart';
 import '../providers/game_provider.dart';

@@ -20,7 +20,6 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.x'
           channel: 'stable'
           cache: true
 
@@ -45,7 +44,6 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.x'
           channel: 'stable'
           cache: true
 
@@ -72,18 +70,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4.1.8
         with:
-          flutter-version: '3.19.x'
-          channel: 'stable'
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build release APK
-        run: flutter build apk --release --no-tree-shake-icons
+          name: matrix-release-apk
+          path: apk/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -95,6 +86,6 @@ jobs:
             ### Installation
             Download the APK below and install it on your Android device.
             You may need to enable "Install from unknown sources" in your device settings.
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: apk/app-release.apk
           draft: false
           prerelease: false
