@@ -77,7 +77,7 @@ class _CardCell extends StatelessWidget {
       bgColor = Colors.blue.shade800;
       borderColor = Colors.blue;
     } else if (isValid) {
-      bgColor = Colors.blue.shade900.withOpacity(0.5);
+      bgColor = Colors.blue.shade900.withValues(alpha: 0.5);
       borderColor = Colors.blue.shade400;
     } else {
       bgColor = const Color(0xFF16213E);

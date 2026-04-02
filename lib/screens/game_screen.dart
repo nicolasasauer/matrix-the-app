@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart' hide Card;
 import 'package:provider/provider.dart';
-import '../domain/models.dart';
+
 import '../providers/game_provider.dart';
 import '../widgets/game_board.dart';
 import '../widgets/guess_controls.dart';
