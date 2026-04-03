@@ -169,4 +169,13 @@ class GameEngine {
   }
 
   bool get isGameFinished => deck.isEmpty;
+
+  bool get isMatrixFull {
+    for (int r = 0; r < 5; r++) {
+      for (int c = 0; c < 5; c++) {
+        if (grid[r][c] == null) return false;
+      }
+    }
+    return true;
+  }
 }

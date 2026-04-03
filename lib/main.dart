@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/game_provider.dart';
+import 'services/storage_service.dart';
 import 'screens/setup_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/scoreboard_screen.dart';
@@ -8,7 +9,7 @@ import 'screens/scoreboard_screen.dart';
 void main() {
   runApp(
     ChangeNotifierProvider(
-      create: (_) => GameProvider(),
+      create: (_) => GameProvider(StorageService()),
       child: const MatrixApp(),
     ),
   );

@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../domain/models.dart';
+import '../domain/game_record.dart';
 import '../engine/game_engine.dart';
+import '../services/storage_service.dart';
 
 class Player {
   String name;
@@ -16,10 +18,15 @@ enum GamePhase {
   makingGuess,
   showingFailure,
   awaitingDecision,
+  matrixFull,
   gameOver,
 }
 
 class GameProvider extends ChangeNotifier {
+  final StorageService _storage;
+
+  GameProvider(this._storage);
+
   List<Player> _players = [];
   int _currentPlayerIndex = 0;
   GameEngine? _engine;
@@ -77,6 +84,11 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setPlayers(List<String> names) {
+    _players = names.map((n) => Player(n)).toList();
+    notifyListeners();
+  }
+
   void startGame() {
     if (_players.isEmpty) return;
     _engine = GameEngine.newGame();
@@ -117,6 +129,7 @@ class GameProvider extends ChangeNotifier {
 
     if (result == PlaceResult.gameFinished) {
       _phase = GamePhase.gameOver;
+      _saveGame(matrixFull: false);
       notifyListeners();
       return;
     }
@@ -127,7 +140,14 @@ class GameProvider extends ChangeNotifier {
       return;
     }
 
-    // Correct guess
+    // Correct guess – check if the matrix is now completely filled
+    if (_engine!.isMatrixFull) {
+      _phase = GamePhase.matrixFull;
+      _saveGame(matrixFull: true);
+      notifyListeners();
+      return;
+    }
+
     _turnCalls++;
     _updateMultiplier();
 
@@ -162,6 +182,7 @@ class GameProvider extends ChangeNotifier {
 
     if (_engine!.isGameFinished) {
       _phase = GamePhase.gameOver;
+      _saveGame(matrixFull: false);
     } else {
       _phase = GamePhase.selectingPosition;
     }
@@ -188,6 +209,7 @@ class GameProvider extends ChangeNotifier {
 
     if (_engine!.isGameFinished) {
       _phase = GamePhase.gameOver;
+      _saveGame(matrixFull: false);
     } else {
       _phase = GamePhase.selectingPosition;
     }
@@ -200,4 +222,15 @@ class GameProvider extends ChangeNotifier {
   }
 
   int getNeighborCount(Position pos) => getNeighbors(pos).length;
+
+  void _saveGame({required bool matrixFull}) {
+    final record = GameRecord(
+      playedAt: DateTime.now(),
+      players: _players
+          .map((p) => PlayerRecord(name: p.name, penaltyLog: List.of(p.penaltyLog)))
+          .toList(),
+      matrixFull: matrixFull,
+    );
+    _storage.saveGame(record);
+  }
 }
