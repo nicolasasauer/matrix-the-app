@@ -14,6 +14,7 @@ class GameBoard extends StatelessWidget {
 
     final validPositions = engine.validPositions;
     final selectedPos = provider.selectedPosition;
+    final isFailure = provider.phase == GamePhase.showingFailure;
 
     return AspectRatio(
       aspectRatio: 1,
@@ -34,12 +35,17 @@ class GameBoard extends StatelessWidget {
           final isValid = validPositions.contains(pos) && provider.canInteract;
           final isSelected = selectedPos == pos;
           final isNucleus = row == 2 && col == 2;
+          final isFailureCell = isFailure &&
+              selectedPos != null &&
+              (row == selectedPos.row || col == selectedPos.col);
 
           return _CardCell(
             card: card,
             isValid: isValid,
             isSelected: isSelected,
             isNucleus: isNucleus,
+            isFailureCell: isFailureCell,
+            isFailureOrigin: isFailure && pos == selectedPos,
             onTap: isValid && provider.phase == GamePhase.selectingPosition
                 ? () => provider.selectPosition(pos)
                 : null,
@@ -55,6 +61,8 @@ class _CardCell extends StatelessWidget {
   final bool isValid;
   final bool isSelected;
   final bool isNucleus;
+  final bool isFailureCell;
+  final bool isFailureOrigin;
   final VoidCallback? onTap;
 
   const _CardCell({
@@ -62,6 +70,8 @@ class _CardCell extends StatelessWidget {
     required this.isValid,
     required this.isSelected,
     required this.isNucleus,
+    this.isFailureCell = false,
+    this.isFailureOrigin = false,
     this.onTap,
   });
 
@@ -70,7 +80,13 @@ class _CardCell extends StatelessWidget {
     final Color bgColor;
     final Color borderColor;
 
-    if (card != null) {
+    if (isFailureOrigin) {
+      bgColor = Colors.red.shade900;
+      borderColor = Colors.red;
+    } else if (isFailureCell) {
+      bgColor = const Color(0xFF5C1010);
+      borderColor = Colors.red.shade700;
+    } else if (card != null) {
       bgColor = isNucleus ? const Color(0xFF533483) : const Color(0xFF0F3460);
       borderColor = isNucleus ? Colors.purple : Colors.blueGrey;
     } else if (isSelected) {
@@ -90,14 +106,30 @@ class _CardCell extends StatelessWidget {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: borderColor, width: isValid || isSelected ? 2 : 1),
+          border: Border.all(
+            color: borderColor,
+            width: isValid || isSelected || isFailureCell ? 2 : 1,
+          ),
+          boxShadow: isFailureOrigin
+              ? [
+                  BoxShadow(
+                    color: Colors.red.withValues(alpha: 0.6),
+                    blurRadius: 8,
+                    spreadRadius: 2,
+                  ),
+                ]
+              : null,
         ),
         child: card != null
             ? Center(
                 child: Text(
                   card!.display,
                   style: TextStyle(
-                    color: card!.isRed ? Colors.red.shade300 : Colors.white,
+                    color: isFailureCell
+                        ? Colors.red.shade200
+                        : card!.isRed
+                            ? Colors.red.shade300
+                            : Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),

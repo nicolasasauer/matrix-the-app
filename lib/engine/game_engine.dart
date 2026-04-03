@@ -151,5 +151,22 @@ class GameEngine {
     return cleared;
   }
 
+  /// Counts how many cards would be cleared by a failure at [pos] without
+  /// modifying the grid. Used to preview the penalty before confirming.
+  /// The row loop counts all cards in the row (including the intersection cell).
+  /// The column loop skips the already-counted row to avoid double-counting.
+  int countCardsToBeCleared(Position pos) {
+    int count = 0;
+    final row = pos.row;
+    final col = pos.col;
+    for (int c = 0; c < 5; c++) {
+      if (grid[row][c] != null) count++;
+    }
+    for (int r = 0; r < 5; r++) {
+      if (r != row && grid[r][col] != null) count++;
+    }
+    return count;
+  }
+
   bool get isGameFinished => deck.isEmpty;
 }
