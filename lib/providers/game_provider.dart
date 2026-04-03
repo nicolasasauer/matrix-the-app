@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import '../domain/models.dart';
 import '../domain/game_record.dart';
 import '../engine/game_engine.dart';
@@ -165,12 +166,14 @@ class GameProvider extends ChangeNotifier {
     }
 
     if (result == PlaceResult.wrong) {
+      HapticFeedback.mediumImpact();
       _phase = GamePhase.showingFailure;
       notifyListeners();
       return;
     }
 
     // Correct guess – check if the matrix is now completely filled
+    HapticFeedback.lightImpact();
     currentPlayer?.correctGuesses++;
     if (_engine!.isMatrixFull) {
       _phase = GamePhase.matrixFull;
