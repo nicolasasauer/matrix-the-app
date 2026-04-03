@@ -8,8 +8,9 @@ import '../services/storage_service.dart';
 class Player {
   String name;
   List<int> penaltyLog;
+  int maxMultiplier;
 
-  Player(this.name) : penaltyLog = [];
+  Player(this.name) : penaltyLog = [], maxMultiplier = 1;
 
   int get totalPenalty => penaltyLog.fold(0, (sum, p) => sum + p);
 }
@@ -102,6 +103,10 @@ class GameProvider extends ChangeNotifier {
     _globalMultiplier = 1;
     _selectedPosition = null;
     _drawnCard = null;
+    for (final p in _players) {
+      p.maxMultiplier = 1;
+    }
+    unawaited(_storage.clearCurrentGame().catchError((_) {}));
     notifyListeners();
   }
 
@@ -165,6 +170,10 @@ class GameProvider extends ChangeNotifier {
   void _updateMultiplier() {
     final bonusSets = (_turnCalls ~/ 3) - 1;
     _globalMultiplier = _inheritedMultiplier + (bonusSets < 0 ? 0 : bonusSets);
+    final p = currentPlayer;
+    if (p != null && _globalMultiplier > p.maxMultiplier) {
+      p.maxMultiplier = _globalMultiplier;
+    }
   }
 
   void confirmFailure() {
@@ -188,6 +197,7 @@ class GameProvider extends ChangeNotifier {
       _saveGame(matrixFull: false);
     } else {
       _phase = GamePhase.selectingPosition;
+      _autoSave();
     }
     notifyListeners();
   }
@@ -210,11 +220,18 @@ class GameProvider extends ChangeNotifier {
     _selectedPosition = null;
     _drawnCard = null;
 
+    // Track inherited multiplier for the next player
+    final nextPlayer = _players[_currentPlayerIndex];
+    if (nextInherited > nextPlayer.maxMultiplier) {
+      nextPlayer.maxMultiplier = nextInherited;
+    }
+
     if (_engine!.isGameFinished) {
       _phase = GamePhase.gameOver;
       _saveGame(matrixFull: false);
     } else {
       _phase = GamePhase.selectingPosition;
+      _autoSave();
     }
     notifyListeners();
   }
@@ -226,14 +243,32 @@ class GameProvider extends ChangeNotifier {
 
   int getNeighborCount(Position pos) => getNeighbors(pos).length;
 
-  void _saveGame({required bool matrixFull}) {
-    final record = GameRecord(
+  void _autoSave() {
+    final record = _buildRecord(matrixFull: _phase == GamePhase.matrixFull);
+    unawaited(_storage.saveCurrentGame(record).catchError((_) {}));
+  }
+
+  void saveToHistory() {
+    _saveGame(matrixFull: _phase == GamePhase.matrixFull);
+  }
+
+  GameRecord _buildRecord({required bool matrixFull}) {
+    return GameRecord(
       playedAt: DateTime.now(),
       players: _players
-          .map((p) => PlayerRecord(name: p.name, penaltyLog: List.of(p.penaltyLog)))
+          .map((p) => PlayerRecord(
+                name: p.name,
+                penaltyLog: List.of(p.penaltyLog),
+                maxMultiplier: p.maxMultiplier,
+              ))
           .toList(),
       matrixFull: matrixFull,
     );
+  }
+
+  void _saveGame({required bool matrixFull}) {
+    final record = _buildRecord(matrixFull: matrixFull);
     unawaited(_storage.saveGame(record).catchError((_) {}));
+    unawaited(_storage.clearCurrentGame().catchError((_) {}));
   }
 }

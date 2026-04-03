@@ -10,6 +10,7 @@ class ScoreboardScreen extends StatelessWidget {
     final provider = context.watch<GameProvider>();
     final players = provider.players;
     final isMatrixFull = provider.phase == GamePhase.matrixFull;
+    final isGameOver = provider.phase == GamePhase.gameOver || isMatrixFull;
 
     final sorted = [...players]..sort((a, b) => b.totalPenalty.compareTo(a.totalPenalty));
 
@@ -20,6 +21,20 @@ class ScoreboardScreen extends StatelessWidget {
         title: const Text('Scoreboard', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          if (!isGameOver)
+            IconButton(
+              icon: const Icon(Icons.save, color: Colors.white),
+              tooltip: 'Zwischenspeichern',
+              onPressed: () {
+                provider.saveToHistory();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Spielstand gespeichert!'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
           TextButton(
             onPressed: () {
               provider.startGame();
@@ -139,6 +154,26 @@ class ScoreboardScreen extends StatelessWidget {
                             ),
                           )
                           .toList(),
+                    ),
+                  ],
+                  if (player.maxMultiplier > 1) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Text(
+                          '✕',
+                          style: TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Max Multiplikator: ${player.maxMultiplier}x',
+                          style: const TextStyle(
+                            color: Colors.orangeAccent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],

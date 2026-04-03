@@ -1,19 +1,26 @@
 class PlayerRecord {
   final String name;
   final List<int> penaltyLog;
+  final int maxMultiplier;
 
-  const PlayerRecord({required this.name, required this.penaltyLog});
+  const PlayerRecord({
+    required this.name,
+    required this.penaltyLog,
+    this.maxMultiplier = 1,
+  });
 
   int get totalPenalty => penaltyLog.fold(0, (sum, p) => sum + p);
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'penaltyLog': penaltyLog,
+        'maxMultiplier': maxMultiplier,
       };
 
   factory PlayerRecord.fromJson(Map<String, dynamic> json) => PlayerRecord(
         name: json['name'] as String,
         penaltyLog: (json['penaltyLog'] as List).cast<int>(),
+        maxMultiplier: (json['maxMultiplier'] as int?) ?? 1,
       );
 }
 
