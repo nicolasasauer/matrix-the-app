@@ -46,6 +46,18 @@ class GameProvider extends ChangeNotifier {
   Card? get drawnCard => _drawnCard;
   int get clearedCards => _clearedCards;
 
+  /// The drink penalty that will be assigned when [confirmFailure] is called.
+  /// Only meaningful during the [GamePhase.showingFailure] phase.
+  int get pendingPenalty {
+    if (_phase != GamePhase.showingFailure ||
+        _engine == null ||
+        _selectedPosition == null) {
+      return 0;
+    }
+    return _engine!.countCardsToBeCleared(_selectedPosition!) *
+        _inheritedMultiplier;
+  }
+
   bool get canInteract =>
       _phase == GamePhase.selectingPosition ||
       _phase == GamePhase.makingGuess;
