@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../domain/models.dart';
 import '../providers/game_provider.dart';
 import '../providers/settings_provider.dart';
+import 'card_face.dart';
 
 class GameBoard extends StatelessWidget {
   const GameBoard({super.key});
@@ -232,20 +233,9 @@ class _CardCellState extends State<_CardCell>
             ),
           );
         },
-        child: Center(
-          child: Text(
-            card.display,
-            style: TextStyle(
-              color: widget.isFailureCell
-                  ? Colors.red.shade200
-                  : card.isRed
-                      ? Colors.red.shade300
-                      : Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
+        child: CardFace(
+          card: card,
+          failure: widget.isFailureCell,
         ),
       );
     }

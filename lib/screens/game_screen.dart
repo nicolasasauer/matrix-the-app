@@ -8,6 +8,7 @@ import '../widgets/game_board.dart';
 import '../widgets/guess_controls.dart';
 import '../widgets/player_info_bar.dart';
 import '../widgets/settings_dialog.dart';
+import '../widgets/card_face.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -271,16 +272,7 @@ class _FailureBanner extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            card.display,
-                            style: TextStyle(
-                              color: card.isRed
-                                  ? Colors.red.shade200
-                                  : Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          CardLarge(card: card),
                         ],
                       ),
                     ),
