@@ -35,12 +35,12 @@ class AppStrings {
 
   static String neighborCount(int count) =>
       '$count Nachbar${count == 1 ? '' : 'n'}';
-  static const String higher = '▲ Höher';
-  static const String lower = '▼ Niedriger';
+  static const String higher = 'Höher';
+  static const String lower = 'Niedriger';
   static const String inside = 'Dazwischen';
   static const String outside = 'Außerhalb';
-  static const String hasSuit = '✓ Hat Farbe';
-  static const String doesNotHaveSuit = '✗ Hat nicht';
+  static const String hasSuit = 'Hat Farbe';
+  static const String doesNotHaveSuit = 'Hat nicht';
   static const String cancelSelection = 'Abbrechen';
 
   // ── Failure Banner ────────────────────────────────────────────────────────
