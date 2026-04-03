@@ -49,7 +49,7 @@ class AppStrings {
   static const String drawnCard = 'Gezogene Karte';
   static const String sip = 'Schluck';
   static const String sips = 'Schlücke';
-  static String sipsLabel(int count) => count == 1 ? sip : AppStrings.sips;
+  static String sipsLabel(int count) => count == 1 ? sip : sips;
   static const String rowColCleared = 'Zeile & Spalte werden abgeräumt';
   static const String confirmClear = 'Abräumen';
 
@@ -78,6 +78,7 @@ class AppStrings {
 
   // ── Player Management Dialog ──────────────────────────────────────────────
 
-  static const String addPlayerHint = 'Spieler hinzufügen';
+  static const String addPlayerHint = 'Neuer Spieler...';
   static const String add = 'Hinzufügen';
+  static const String done = 'Fertig';
 }

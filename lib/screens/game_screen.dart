@@ -874,7 +874,7 @@ class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Fertig',
+          child: const Text(AppStrings.done,
               style: TextStyle(color: Colors.white)),
         ),
       ],
