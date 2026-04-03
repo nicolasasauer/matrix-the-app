@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
+import '../widgets/settings_dialog.dart';
 import 'history_screen.dart';
 
 class SetupScreen extends StatefulWidget {
@@ -40,6 +41,16 @@ class _SetupScreenState extends State<SetupScreen> {
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings, color: Colors.white),
+              tooltip: 'Einstellungen',
+              onPressed: () => showDialog(
+                context: context,
+                builder: (_) => const SettingsDialog(),
+              ),
+            ),
+          ],
           bottom: const TabBar(
             indicatorColor: Color(0xFF533483),
             labelColor: Colors.white,
@@ -98,6 +109,7 @@ class _SetupContent extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: controller,
+                  textCapitalization: TextCapitalization.words,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Spielername...',
