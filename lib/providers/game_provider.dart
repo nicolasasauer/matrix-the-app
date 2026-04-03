@@ -8,9 +8,15 @@ import '../services/storage_service.dart';
 class Player {
   String name;
   List<int> penaltyLog;
-  int maxMultiplier;
+  int maxReceivedMultiplier;
+  int maxCreatedMultiplier;
+  bool active;
 
-  Player(this.name) : penaltyLog = [], maxMultiplier = 1;
+  Player(this.name)
+      : penaltyLog = [],
+        maxReceivedMultiplier = 1,
+        maxCreatedMultiplier = 0,
+        active = true;
 
   int get totalPenalty => penaltyLog.fold(0, (sum, p) => sum + p);
 }
@@ -73,6 +79,8 @@ class GameProvider extends ChangeNotifier {
       _phase == GamePhase.selectingPosition ||
       _phase == GamePhase.makingGuess;
 
+  int get activePlayerCount => _players.where((p) => p.active).length;
+
   void addPlayer(String name) {
     if (name.trim().isEmpty) return;
     _players.add(Player(name.trim()));
@@ -85,6 +93,14 @@ class GameProvider extends ChangeNotifier {
     if (_currentPlayerIndex >= _players.length) {
       _currentPlayerIndex = 0;
     }
+    notifyListeners();
+  }
+
+  void togglePlayerActive(int index) {
+    if (index < 0 || index >= _players.length) return;
+    final player = _players[index];
+    if (player.active && activePlayerCount <= 1) return;
+    player.active = !player.active;
     notifyListeners();
   }
 
@@ -104,7 +120,10 @@ class GameProvider extends ChangeNotifier {
     _selectedPosition = null;
     _drawnCard = null;
     for (final p in _players) {
-      p.maxMultiplier = 1;
+      p.penaltyLog.clear();
+      p.maxReceivedMultiplier = 1;
+      p.maxCreatedMultiplier = 0;
+      p.active = true;
     }
     unawaited(_storage.clearCurrentGame().catchError((_) {}));
     notifyListeners();
@@ -170,9 +189,10 @@ class GameProvider extends ChangeNotifier {
   void _updateMultiplier() {
     final bonusSets = (_turnCalls ~/ 3) - 1;
     _globalMultiplier = _inheritedMultiplier + (bonusSets < 0 ? 0 : bonusSets);
+    final bonus = _globalMultiplier - _inheritedMultiplier;
     final p = currentPlayer;
-    if (p != null && _globalMultiplier > p.maxMultiplier) {
-      p.maxMultiplier = _globalMultiplier;
+    if (p != null && bonus > p.maxCreatedMultiplier) {
+      p.maxCreatedMultiplier = bonus;
     }
   }
 
@@ -211,7 +231,19 @@ class GameProvider extends ChangeNotifier {
   void endTurn() {
     if (_phase != GamePhase.awaitingDecision) return;
 
-    _currentPlayerIndex = (_currentPlayerIndex + 1) % _players.length;
+    // Find next active player
+    int next = (_currentPlayerIndex + 1) % _players.length;
+    int attempts = 0;
+    while (!_players[next].active && attempts < _players.length) {
+      next = (next + 1) % _players.length;
+      attempts++;
+    }
+    // Fall back to next index if no active player found (safety guard)
+    if (!_players[next].active) {
+      next = (_currentPlayerIndex + 1) % _players.length;
+    }
+    _currentPlayerIndex = next;
+
     final nextInherited = _globalMultiplier;
 
     _inheritedMultiplier = nextInherited;
@@ -220,10 +252,10 @@ class GameProvider extends ChangeNotifier {
     _selectedPosition = null;
     _drawnCard = null;
 
-    // Track inherited multiplier for the next player
+    // Track received multiplier for the next player
     final nextPlayer = _players[_currentPlayerIndex];
-    if (nextInherited > nextPlayer.maxMultiplier) {
-      nextPlayer.maxMultiplier = nextInherited;
+    if (nextInherited > nextPlayer.maxReceivedMultiplier) {
+      nextPlayer.maxReceivedMultiplier = nextInherited;
     }
 
     if (_engine!.isGameFinished) {
@@ -259,7 +291,8 @@ class GameProvider extends ChangeNotifier {
           .map((p) => PlayerRecord(
                 name: p.name,
                 penaltyLog: List.of(p.penaltyLog),
-                maxMultiplier: p.maxMultiplier,
+                maxReceivedMultiplier: p.maxReceivedMultiplier,
+                maxCreatedMultiplier: p.maxCreatedMultiplier,
               ))
           .toList(),
       matrixFull: matrixFull,

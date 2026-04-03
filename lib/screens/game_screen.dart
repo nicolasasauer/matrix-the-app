@@ -60,6 +60,14 @@ class GameScreen extends StatelessWidget {
         title: const Text('Matrix', style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.group, color: Colors.white),
+            tooltip: 'Spieler verwalten',
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => const _PlayerManagementDialog(),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.leaderboard, color: Colors.white),
             onPressed: () => Navigator.pushNamed(context, '/scoreboard'),
           ),
@@ -521,6 +529,118 @@ class _MatrixFullBanner extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PlayerManagementDialog extends StatefulWidget {
+  const _PlayerManagementDialog();
+
+  @override
+  State<_PlayerManagementDialog> createState() =>
+      _PlayerManagementDialogState();
+}
+
+class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _addPlayer(BuildContext context) {
+    final name = _controller.text.trim();
+    if (name.isNotEmpty) {
+      context.read<GameProvider>().addPlayer(name);
+      _controller.clear();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<GameProvider>();
+    final players = provider.players;
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF16213E),
+      title: const Text(
+        'Spieler verwalten',
+        style: TextStyle(color: Colors.white),
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 280),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: players.length,
+                itemBuilder: (context, index) {
+                  final player = players[index];
+                  return ListTile(
+                    dense: true,
+                    title: Text(
+                      player.name,
+                      style: TextStyle(
+                        color: player.active ? Colors.white : Colors.white38,
+                      ),
+                    ),
+                    trailing: Switch(
+                      value: player.active,
+                      onChanged: (_) => provider.togglePlayerActive(index),
+                      activeColor: Colors.greenAccent,
+                      inactiveThumbColor: Colors.white38,
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Divider(color: Colors.white24, height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Neuer Spieler...',
+                      hintStyle: const TextStyle(color: Colors.white54),
+                      filled: true,
+                      fillColor: const Color(0xFF0F3460),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onSubmitted: (_) => _addPlayer(context),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => _addPlayer(context),
+                  icon: const Icon(Icons.person_add, color: Colors.white),
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFF533483),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Fertig', style: TextStyle(color: Colors.white)),
+        ),
+      ],
     );
   }
 }
