@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../domain/models.dart';
 import '../domain/game_record.dart';
@@ -39,6 +40,8 @@ class GameProvider extends ChangeNotifier {
   Position? _selectedPosition;
   Card? _drawnCard;
   int _clearedCards = 0;
+
+  StorageService get storageService => _storage;
 
   List<Player> get players => List.unmodifiable(_players);
   int get currentPlayerIndex => _currentPlayerIndex;
@@ -231,6 +234,6 @@ class GameProvider extends ChangeNotifier {
           .toList(),
       matrixFull: matrixFull,
     );
-    _storage.saveGame(record);
+    unawaited(_storage.saveGame(record).catchError((_) {}));
   }
 }

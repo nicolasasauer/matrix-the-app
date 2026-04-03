@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../domain/game_record.dart';
 import '../providers/game_provider.dart';
-import '../services/storage_service.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -18,7 +17,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _historyFuture = StorageService().loadHistory();
+    _historyFuture = context.read<GameProvider>().storageService.loadHistory();
   }
 
   @override
@@ -46,7 +45,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _refresh() {
     setState(() {
-      _historyFuture = StorageService().loadHistory();
+      _historyFuture =
+          context.read<GameProvider>().storageService.loadHistory();
     });
   }
 
@@ -117,8 +117,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ],
                     ),
                   );
-                  if (confirmed == true) {
-                    await StorageService().clearHistory();
+                  if (confirmed == true && context.mounted) {
+                    await context
+                        .read<GameProvider>()
+                        .storageService
+                        .clearHistory();
                     _refresh();
                   }
                 },
@@ -144,7 +147,7 @@ class _GameRecordCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sorted = [...record.players]
-      ..sort((a, b) => a.totalPenalty.compareTo(b.totalPenalty));
+      ..sort((a, b) => b.totalPenalty.compareTo(a.totalPenalty));
 
     final now = DateTime.now();
     final diff = now.difference(record.playedAt);

@@ -8,9 +8,16 @@ class StorageService {
   Future<List<GameRecord>> loadHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getStringList(_historyKey) ?? [];
-    return raw
-        .map((s) => GameRecord.fromJson(jsonDecode(s) as Map<String, dynamic>))
-        .toList();
+    final records = <GameRecord>[];
+    for (final s in raw) {
+      try {
+        records.add(
+            GameRecord.fromJson(jsonDecode(s) as Map<String, dynamic>));
+      } catch (_) {
+        // Skip corrupted entries
+      }
+    }
+    return records;
   }
 
   Future<void> saveGame(GameRecord record) async {
