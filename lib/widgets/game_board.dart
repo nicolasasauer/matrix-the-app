@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Card;
 import 'package:provider/provider.dart';
 import '../domain/models.dart';
 import '../providers/game_provider.dart';
+import '../providers/settings_provider.dart';
 
 class GameBoard extends StatelessWidget {
   const GameBoard({super.key});
@@ -56,7 +57,7 @@ class GameBoard extends StatelessWidget {
   }
 }
 
-class _CardCell extends StatelessWidget {
+class _CardCell extends StatefulWidget {
   final Card? card;
   final bool isValid;
   final bool isSelected;
@@ -76,23 +77,70 @@ class _CardCell extends StatelessWidget {
   });
 
   @override
+  State<_CardCell> createState() => _CardCellState();
+}
+
+class _CardCellState extends State<_CardCell>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _scaleAnim =
+        CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
+    // Card already on grid at init (e.g. game resumed) — show immediately
+    if (widget.card != null) {
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void didUpdateWidget(_CardCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.card == null && widget.card != null) {
+      final enabled = context.read<SettingsProvider>().animationsEnabled;
+      if (enabled) {
+        _controller.forward(from: 0.0);
+      } else {
+        _controller.value = 1.0;
+      }
+    } else if (oldWidget.card != null && widget.card == null) {
+      _controller.value = 0.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final Color bgColor;
     final Color borderColor;
 
-    if (isFailureOrigin) {
+    if (widget.isFailureOrigin) {
       bgColor = Colors.red.shade900;
       borderColor = Colors.red;
-    } else if (isFailureCell) {
+    } else if (widget.isFailureCell) {
       bgColor = const Color(0xFF5C1010);
       borderColor = Colors.red.shade700;
-    } else if (card != null) {
-      bgColor = isNucleus ? const Color(0xFF533483) : const Color(0xFF0F3460);
-      borderColor = isNucleus ? Colors.purple : Colors.blueGrey;
-    } else if (isSelected) {
+    } else if (widget.card != null) {
+      bgColor = widget.isNucleus
+          ? const Color(0xFF533483)
+          : const Color(0xFF0F3460);
+      borderColor = widget.isNucleus ? Colors.purple : Colors.blueGrey;
+    } else if (widget.isSelected) {
       bgColor = Colors.blue.shade800;
       borderColor = Colors.blue;
-    } else if (isValid) {
+    } else if (widget.isValid) {
       bgColor = Colors.blue.shade900.withValues(alpha: 0.5);
       borderColor = Colors.blue.shade400;
     } else {
@@ -101,16 +149,21 @@ class _CardCell extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
+      onTap: widget.onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: borderColor,
-            width: isValid || isSelected || isFailureCell ? 2 : 1,
+            width:
+                widget.isValid || widget.isSelected || widget.isFailureCell
+                    ? 2
+                    : 1,
           ),
-          boxShadow: isFailureOrigin
+          boxShadow: widget.isFailureOrigin
               ? [
                   BoxShadow(
                     color: Colors.red.withValues(alpha: 0.6),
@@ -120,23 +173,26 @@ class _CardCell extends StatelessWidget {
                 ]
               : null,
         ),
-        child: card != null
+        child: widget.card != null
             ? Center(
-                child: Text(
-                  card!.display,
-                  style: TextStyle(
-                    color: isFailureCell
-                        ? Colors.red.shade200
-                        : card!.isRed
-                            ? Colors.red.shade300
-                            : Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                child: ScaleTransition(
+                  scale: _scaleAnim,
+                  child: Text(
+                    widget.card!.display,
+                    style: TextStyle(
+                      color: widget.isFailureCell
+                          ? Colors.red.shade200
+                          : widget.card!.isRed
+                              ? Colors.red.shade300
+                              : Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                  textAlign: TextAlign.center,
                 ),
               )
-            : isValid
+            : widget.isValid
                 ? const Center(
                     child: Icon(
                       Icons.add_circle_outline,

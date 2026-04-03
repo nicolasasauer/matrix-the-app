@@ -11,12 +11,14 @@ class Player {
   int maxReceivedMultiplier;
   int maxCreatedMultiplier;
   bool active;
+  int correctGuesses;
 
   Player(this.name)
       : penaltyLog = [],
         maxReceivedMultiplier = 1,
         maxCreatedMultiplier = 0,
-        active = true;
+        active = true,
+        correctGuesses = 0;
 
   int get totalPenalty => penaltyLog.fold(0, (sum, p) => sum + p);
 }
@@ -124,6 +126,7 @@ class GameProvider extends ChangeNotifier {
       p.maxReceivedMultiplier = 1;
       p.maxCreatedMultiplier = 0;
       p.active = true;
+      p.correctGuesses = 0;
     }
     unawaited(_storage.clearCurrentGame().catchError((_) {}));
     notifyListeners();
@@ -168,6 +171,7 @@ class GameProvider extends ChangeNotifier {
     }
 
     // Correct guess – check if the matrix is now completely filled
+    currentPlayer?.correctGuesses++;
     if (_engine!.isMatrixFull) {
       _phase = GamePhase.matrixFull;
       _saveGame(matrixFull: true);
@@ -183,6 +187,7 @@ class GameProvider extends ChangeNotifier {
     } else {
       _phase = GamePhase.selectingPosition;
     }
+    _autoSave();
     notifyListeners();
   }
 
@@ -293,6 +298,7 @@ class GameProvider extends ChangeNotifier {
                 penaltyLog: List.of(p.penaltyLog),
                 maxReceivedMultiplier: p.maxReceivedMultiplier,
                 maxCreatedMultiplier: p.maxCreatedMultiplier,
+                correctGuesses: p.correctGuesses,
               ))
           .toList(),
       matrixFull: matrixFull,

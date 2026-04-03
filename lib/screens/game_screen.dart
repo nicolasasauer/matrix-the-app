@@ -2,9 +2,11 @@ import 'package:flutter/material.dart' hide Card;
 import 'package:provider/provider.dart';
 
 import '../providers/game_provider.dart';
+import '../providers/settings_provider.dart';
 import '../widgets/game_board.dart';
 import '../widgets/guess_controls.dart';
 import '../widgets/player_info_bar.dart';
+import '../widgets/settings_dialog.dart';
 
 class GameScreen extends StatelessWidget {
   const GameScreen({super.key});
@@ -71,6 +73,14 @@ class GameScreen extends StatelessWidget {
             icon: const Icon(Icons.leaderboard, color: Colors.white),
             onPressed: () => Navigator.pushNamed(context, '/scoreboard'),
           ),
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            tooltip: 'Einstellungen',
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => const SettingsDialog(),
+            ),
+          ),
         ],
       ),
       body: Column(
@@ -88,13 +98,14 @@ class GameScreen extends StatelessWidget {
                         provider.selectedPosition != null)
                       GuessControls(position: provider.selectedPosition!),
                     if (provider.phase == GamePhase.showingFailure)
-                      const _FailureBanner(),
+                      const _AnimatedBanner(
+                          shake: true, child: _FailureBanner()),
                     if (provider.phase == GamePhase.awaitingDecision)
-                      const _DecisionBanner(),
+                      const _AnimatedBanner(child: _DecisionBanner()),
                     if (provider.phase == GamePhase.matrixFull)
-                      const _MatrixFullBanner(),
+                      const _AnimatedBanner(child: _MatrixFullBanner()),
                     if (provider.phase == GamePhase.gameOver)
-                      const _GameOverBanner(),
+                      const _AnimatedBanner(child: _GameOverBanner()),
                   ],
                 ),
               ),
@@ -154,7 +165,7 @@ class _FailureBanner extends StatelessWidget {
                 const Text('💀', style: TextStyle(fontSize: 22)),
                 const SizedBox(width: 10),
                 Text(
-                  '$playerName verkackt!',
+                  '$playerName hat verkackt!',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
@@ -533,6 +544,102 @@ class _MatrixFullBanner extends StatelessWidget {
   }
 }
 
+class _AnimatedBanner extends StatefulWidget {
+  final Widget child;
+  final bool shake;
+
+  const _AnimatedBanner({required this.child, this.shake = false});
+
+  @override
+  State<_AnimatedBanner> createState() => _AnimatedBannerState();
+}
+
+class _AnimatedBannerState extends State<_AnimatedBanner>
+    with TickerProviderStateMixin {
+  late final AnimationController _slideController;
+  late final AnimationController _shakeController;
+  late final Animation<Offset> _slideAnim;
+  late final Animation<double> _fadeAnim;
+  late final Animation<double> _shakeAnim;
+  bool _started = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 480),
+    );
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.25),
+      end: Offset.zero,
+    ).animate(
+        CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+    _fadeAnim =
+        CurvedAnimation(parent: _slideController, curve: Curves.easeIn);
+    _shakeAnim = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: -10.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -10.0, end: 10.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 10.0, end: -8.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
+    ]).animate(_shakeController);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_started) {
+      _started = true;
+      final enabled = context.read<SettingsProvider>().animationsEnabled;
+      if (enabled) {
+        _slideController.forward();
+        if (widget.shake) {
+          _slideController.addStatusListener(_onSlideComplete);
+        }
+      } else {
+        _slideController.value = 1.0;
+      }
+    }
+  }
+
+  void _onSlideComplete(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      _slideController.removeStatusListener(_onSlideComplete);
+      _shakeController.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _slideController.dispose();
+    _shakeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_slideController, _shakeController]),
+      builder: (context, child) => Transform.translate(
+        offset: Offset(_shakeAnim.value, 0),
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: SlideTransition(
+            position: _slideAnim,
+            child: child,
+          ),
+        ),
+      ),
+      child: widget.child,
+    );
+  }
+}
+
 class _PlayerManagementDialog extends StatefulWidget {
   const _PlayerManagementDialog();
 
@@ -605,6 +712,7 @@ class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
+                    textCapitalization: TextCapitalization.words,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Neuer Spieler...',

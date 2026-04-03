@@ -265,6 +265,15 @@ class _GameRecordCard extends StatelessWidget {
                           ),
                         ),
                     ],
+                    if (p.correctGuesses + p.wrongGuesses > 0) ...[
+                      Text(
+                        '✓${p.correctGuesses} ✗${p.wrongGuesses} ',
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                     Text(
                       '${p.totalPenalty} ',
                       style: const TextStyle(
