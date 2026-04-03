@@ -4,6 +4,7 @@ enum Suit {
   heart('H', 'Herz'),
   spade('P', 'Pik'),
   diamond('K', 'Karo'),
+  // 'Kr' avoids conflict with 'K' (Karo) while matching the German abbreviation for Kreuz
   club('Kr', 'Kreuz');
 
   final String symbol;
