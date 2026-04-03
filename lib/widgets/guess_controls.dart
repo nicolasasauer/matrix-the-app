@@ -124,7 +124,7 @@ class GuessControls extends StatelessWidget {
           children: Suit.values
               .map(
                 (suit) => _GuessButton(
-                  label: '${suit.symbol} ${suit.name}',
+                  label: suit.name,
                   guess: Guess(GuessType.exactSuit, suit: suit),
                   color: suit == Suit.heart || suit == Suit.diamond
                       ? Colors.red.shade700
