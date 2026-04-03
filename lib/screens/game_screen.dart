@@ -48,6 +48,8 @@ class GameScreen extends StatelessWidget {
                       const _FailureBanner(),
                     if (provider.phase == GamePhase.awaitingDecision)
                       const _DecisionBanner(),
+                    if (provider.phase == GamePhase.matrixFull)
+                      const _MatrixFullBanner(),
                     if (provider.phase == GamePhase.gameOver)
                       const _GameOverBanner(),
                   ],
@@ -390,6 +392,99 @@ class _GameOverBanner extends StatelessWidget {
             child: const Text('Ergebnis anzeigen', style: TextStyle(color: Colors.white)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MatrixFullBanner extends StatelessWidget {
+  const _MatrixFullBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1A0050),
+            Color(0xFF6A0DAD),
+            Color(0xFF1A0050),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Color(0xFFFFD700), width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFFFFD700),
+            blurRadius: 24,
+            spreadRadius: 4,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const Text(
+              '🏆✨🎉',
+              style: TextStyle(fontSize: 40),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'MATRIX VOLL!',
+              style: TextStyle(
+                color: Color(0xFFFFD700),
+                fontSize: 32,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Unglaublich! Ihr habt die gesamte Matrix gelegt!',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Das schafft fast niemand – ihr seid Legenden! 🌟',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () =>
+                  Navigator.pushReplacementNamed(context, '/scoreboard'),
+              icon: const Icon(Icons.emoji_events,
+                  color: Colors.black, size: 20),
+              label: const Text(
+                'Ergebnis anzeigen',
+                style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFD700),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                elevation: 6,
+                shadowColor: const Color(0xFFFFD700),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

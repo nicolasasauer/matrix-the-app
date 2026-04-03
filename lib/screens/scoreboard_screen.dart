@@ -9,6 +9,7 @@ class ScoreboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<GameProvider>();
     final players = provider.players;
+    final isMatrixFull = provider.phase == GamePhase.matrixFull;
 
     final sorted = [...players]..sort((a, b) => b.totalPenalty.compareTo(a.totalPenalty));
 
@@ -30,14 +31,45 @@ class ScoreboardScreen extends StatelessWidget {
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: sorted.length,
+        itemCount: sorted.length + (isMatrixFull ? 1 : 0),
         itemBuilder: (context, index) {
-          final player = sorted[index];
-          final rankColor = index == 0
+          if (isMatrixFull && index == 0) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6A0DAD), Color(0xFF1A0050)],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Color(0xFFFFD700), width: 2),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('🏆', style: TextStyle(fontSize: 24)),
+                  SizedBox(width: 10),
+                  Text(
+                    'Matrix Voll – Legendenstatus!',
+                    style: TextStyle(
+                      color: Color(0xFFFFD700),
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Text('🏆', style: TextStyle(fontSize: 24)),
+                ],
+              ),
+            );
+          }
+          final player = sorted[index - (isMatrixFull ? 1 : 0)];
+          final playerRank = index - (isMatrixFull ? 1 : 0);
+          final rankColor = playerRank == 0
               ? const Color(0xFFFFD700)
-              : index == 1
+              : playerRank == 1
                   ? const Color(0xFFC0C0C0)
-                  : index == 2
+                  : playerRank == 2
                       ? const Color(0xFFCD7F32)
                       : Colors.white;
           return Card(
@@ -52,7 +84,7 @@ class ScoreboardScreen extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        '${index + 1}. ',
+                        '${playerRank + 1}. ',
                         style: TextStyle(
                           color: rankColor,
                           fontSize: 18,
