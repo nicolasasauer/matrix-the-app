@@ -23,6 +23,7 @@ class PlayerRecord {
   factory PlayerRecord.fromJson(Map<String, dynamic> json) => PlayerRecord(
         name: json['name'] as String,
         penaltyLog: (json['penaltyLog'] as List).cast<int>(),
+        // 'maxMultiplier' is checked for legacy data migration from older saves
         maxReceivedMultiplier:
             (json['maxReceivedMultiplier'] as int?) ?? (json['maxMultiplier'] as int?) ?? 1,
         maxCreatedMultiplier: (json['maxCreatedMultiplier'] as int?) ?? 0,

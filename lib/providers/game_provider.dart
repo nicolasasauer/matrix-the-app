@@ -238,6 +238,10 @@ class GameProvider extends ChangeNotifier {
       next = (next + 1) % _players.length;
       attempts++;
     }
+    // Fall back to next index if no active player found (safety guard)
+    if (!_players[next].active) {
+      next = (_currentPlayerIndex + 1) % _players.length;
+    }
     _currentPlayerIndex = next;
 
     final nextInherited = _globalMultiplier;
