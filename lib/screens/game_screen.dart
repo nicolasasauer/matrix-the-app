@@ -22,6 +22,41 @@ class GameScreen extends StatelessWidget {
       backgroundColor: const Color(0xFF1A1A2E),
       appBar: AppBar(
         backgroundColor: const Color(0xFF16213E),
+        leading: IconButton(
+          icon: const Icon(Icons.home, color: Colors.white),
+          onPressed: () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: const Color(0xFF16213E),
+                title: const Text(
+                  'Spiel beenden?',
+                  style: TextStyle(color: Colors.white),
+                ),
+                content: const Text(
+                  'Möchtest du wirklich zum Startmenü? Das laufende Spiel wird abgebrochen.',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: const Text('Abbrechen'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: const Text(
+                      'Ja, beenden',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+            );
+            if (confirmed == true && context.mounted) {
+              Navigator.pushReplacementNamed(context, '/');
+            }
+          },
+        ),
         title: const Text('Matrix', style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(
