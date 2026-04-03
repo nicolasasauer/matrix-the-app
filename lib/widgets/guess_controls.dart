@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../domain/models.dart';
 import '../l10n/app_strings.dart';
 import '../providers/game_provider.dart';
+import 'card_face.dart';
 
 class GuessControls extends StatelessWidget {
   final Position position;
@@ -46,9 +47,12 @@ class GuessControls extends StatelessWidget {
           AppStrings.neighborCount(neighbors.length),
           style: const TextStyle(color: Colors.white70, fontSize: 14),
         ),
-        Text(
-          neighbors.map((c) => c.display).join('  '),
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 12,
+          children: neighbors
+              .map((c) => CardInline(card: c, fontSize: 18))
+              .toList(),
         ),
       ],
     );

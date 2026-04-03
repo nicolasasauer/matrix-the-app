@@ -28,3 +28,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/
+    - assets/fonts/
+  fonts:
+    - family: NotoSansSymbols2
+      fonts:
+        - asset: assets/fonts/NotoSansSymbols2-Regular.ttf
