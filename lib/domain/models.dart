@@ -1,11 +1,10 @@
 import 'dart:math';
 
 enum Suit {
-  heart('H', 'Herz'),
-  spade('P', 'Pik'),
-  diamond('K', 'Karo'),
-  // 'Kr' avoids conflict with 'K' (Karo) while matching the German abbreviation for Kreuz
-  club('Kr', 'Kreuz');
+  heart('♥', 'Herz'),
+  spade('♠', 'Pik'),
+  diamond('♦', 'Karo'),
+  club('♣', 'Kreuz');
 
   final String symbol;
   final String name;
