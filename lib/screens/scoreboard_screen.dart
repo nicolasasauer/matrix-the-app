@@ -156,23 +156,50 @@ class ScoreboardScreen extends StatelessWidget {
                           .toList(),
                     ),
                   ],
-                  if (player.maxMultiplier > 1) ...[
+                  if (player.maxReceivedMultiplier > 1 || player.maxCreatedMultiplier > 0) ...[
                     const SizedBox(height: 6),
-                    Row(
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
                       children: [
-                        const Text(
-                          '✕',
-                          style: TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Max Multiplikator: ${player.maxMultiplier}x',
-                          style: const TextStyle(
-                            color: Colors.orangeAccent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                        if (player.maxReceivedMultiplier > 1)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                '↓',
+                                style: TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Bekommen: ${player.maxReceivedMultiplier}x',
+                                style: const TextStyle(
+                                  color: Colors.orangeAccent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
+                        if (player.maxCreatedMultiplier > 0)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text(
+                                '✕',
+                                style: TextStyle(color: Colors.greenAccent, fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Erzeugt: +${player.maxCreatedMultiplier}x',
+                                style: const TextStyle(
+                                  color: Colors.greenAccent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ],

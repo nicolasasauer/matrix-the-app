@@ -245,15 +245,25 @@ class _GameRecordCard extends StatelessWidget {
                         style: TextStyle(color: rankColor, fontSize: 13),
                       ),
                     ),
-                    if (p.maxMultiplier > 1) ...[
-                      Text(
-                        '${p.maxMultiplier}x ',
-                        style: const TextStyle(
-                          color: Colors.orangeAccent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                    if (p.maxReceivedMultiplier > 1 || p.maxCreatedMultiplier > 0) ...[
+                      if (p.maxReceivedMultiplier > 1)
+                        Text(
+                          '↓${p.maxReceivedMultiplier}x ',
+                          style: const TextStyle(
+                            color: Colors.orangeAccent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
+                      if (p.maxCreatedMultiplier > 0)
+                        Text(
+                          '+${p.maxCreatedMultiplier}x ',
+                          style: const TextStyle(
+                            color: Colors.greenAccent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                     ],
                     Text(
                       '${p.totalPenalty} ',
