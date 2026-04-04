@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart' hide Card;
 import 'package:provider/provider.dart';
 import '../domain/models.dart';
 import '../providers/game_provider.dart';
 import '../providers/settings_provider.dart';
+import 'card_face.dart';
 
 class GameBoard extends StatelessWidget {
   const GameBoard({super.key});
@@ -17,42 +20,53 @@ class GameBoard extends StatelessWidget {
     final selectedPos = provider.selectedPosition;
     final isFailure = provider.phase == GamePhase.showingFailure;
 
-    return AspectRatio(
-      aspectRatio: 1,
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 5,
-          crossAxisSpacing: 4,
-          mainAxisSpacing: 4,
-        ),
-        itemCount: 25,
-        itemBuilder: (context, index) {
-          final row = index ~/ 5;
-          final col = index % 5;
-          final pos = Position(row, col);
-          final card = engine.getCard(pos);
-          final isValid = validPositions.contains(pos) && provider.canInteract;
-          final isSelected = selectedPos == pos;
-          final isNucleus = row == 2 && col == 2;
-          final isFailureCell = isFailure &&
-              selectedPos != null &&
-              (row == selectedPos.row || col == selectedPos.col);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Square board that always fits the available space without scrolling.
+        final size = math.min(constraints.maxWidth, constraints.maxHeight);
+        return Center(
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 5,
+                crossAxisSpacing: 4,
+                mainAxisSpacing: 4,
+              ),
+              itemCount: 25,
+              itemBuilder: (context, index) {
+                final row = index ~/ 5;
+                final col = index % 5;
+                final pos = Position(row, col);
+                final card = engine.getCard(pos);
+                final isValid =
+                    validPositions.contains(pos) && provider.canInteract;
+                final isSelected = selectedPos == pos;
+                final isNucleus = row == 2 && col == 2;
+                final isFailureCell = isFailure &&
+                    selectedPos != null &&
+                    (row == selectedPos.row || col == selectedPos.col);
 
-          return _CardCell(
-            card: card,
-            isValid: isValid,
-            isSelected: isSelected,
-            isNucleus: isNucleus,
-            isFailureCell: isFailureCell,
-            isFailureOrigin: isFailure && pos == selectedPos,
-            onTap: isValid && provider.phase == GamePhase.selectingPosition
-                ? () => provider.selectPosition(pos)
-                : null,
-          );
-        },
-      ),
+                return _CardCell(
+                  card: card,
+                  isValid: isValid,
+                  isSelected: isSelected,
+                  isNucleus: isNucleus,
+                  isFailureCell: isFailureCell,
+                  isFailureOrigin: isFailure && pos == selectedPos,
+                  onTap: isValid &&
+                          provider.phase == GamePhase.selectingPosition
+                      ? () => provider.selectPosition(pos)
+                      : null,
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -83,19 +97,20 @@ class _CardCell extends StatefulWidget {
 class _CardCellState extends State<_CardCell>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _scaleAnim;
+
+  /// Retains the card reference during the fade-out so it can still be
+  /// rendered while the removal animation is playing.
+  Card? _displayCard;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 420),
     );
-    _scaleAnim =
-        CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
-    // Card already on grid at init (e.g. game resumed) — show immediately
     if (widget.card != null) {
+      _displayCard = widget.card;
       _controller.value = 1.0;
     }
   }
@@ -103,15 +118,29 @@ class _CardCellState extends State<_CardCell>
   @override
   void didUpdateWidget(_CardCell oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final animEnabled =
+        context.read<SettingsProvider>().animationsEnabled;
+
     if (oldWidget.card == null && widget.card != null) {
-      final enabled = context.read<SettingsProvider>().animationsEnabled;
-      if (enabled) {
+      // A new card was placed: flip in.
+      _displayCard = widget.card;
+      if (animEnabled) {
         _controller.forward(from: 0.0);
       } else {
         _controller.value = 1.0;
       }
     } else if (oldWidget.card != null && widget.card == null) {
-      _controller.value = 0.0;
+      // Card was removed (row/column cleared): fade out.
+      if (animEnabled) {
+        _controller.reverse().whenComplete(() {
+          if (mounted) setState(() => _displayCard = null);
+        });
+      } else {
+        _controller.value = 0.0;
+        _displayCard = null;
+      }
+    } else if (widget.card != null) {
+      _displayCard = widget.card;
     }
   }
 
@@ -123,6 +152,9 @@ class _CardCellState extends State<_CardCell>
 
   @override
   Widget build(BuildContext context) {
+    // Use _displayCard so the cell can still render during fade-out.
+    final hasCard = _displayCard != null || widget.card != null;
+
     final Color bgColor;
     final Color borderColor;
 
@@ -132,7 +164,7 @@ class _CardCellState extends State<_CardCell>
     } else if (widget.isFailureCell) {
       bgColor = const Color(0xFF5C1010);
       borderColor = Colors.red.shade700;
-    } else if (widget.card != null) {
+    } else if (hasCard) {
       bgColor = widget.isNucleus
           ? const Color(0xFF533483)
           : const Color(0xFF0F3460);
@@ -173,35 +205,51 @@ class _CardCellState extends State<_CardCell>
                 ]
               : null,
         ),
-        child: widget.card != null
-            ? Center(
-                child: ScaleTransition(
-                  scale: _scaleAnim,
-                  child: Text(
-                    widget.card!.display,
-                    style: TextStyle(
-                      color: widget.isFailureCell
-                          ? Colors.red.shade200
-                          : widget.card!.isRed
-                              ? Colors.red.shade300
-                              : Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              )
-            : widget.isValid
-                ? const Center(
-                    child: Icon(
-                      Icons.add_circle_outline,
-                      color: Colors.blue,
-                      size: 20,
-                    ),
-                  )
-                : null,
+        child: _buildContent(),
       ),
     );
+  }
+
+  Widget _buildContent() {
+    final card = _displayCard ?? widget.card;
+
+    if (card != null) {
+      return AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final t = _controller.value; // 0 → 1
+          // Card-flip: rotate from 90° → 0° (appear from the side).
+          final angle =
+              (1.0 - Curves.easeOut.transform(t.clamp(0.0, 1.0))) *
+                  (math.pi / 2);
+          return Transform(
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.001) // perspective
+              ..rotateY(angle),
+            alignment: Alignment.center,
+            child: Opacity(
+              opacity: t.clamp(0.0, 1.0),
+              child: child,
+            ),
+          );
+        },
+        child: CardFace(
+          card: card,
+          failure: widget.isFailureCell,
+        ),
+      );
+    }
+
+    if (widget.isValid) {
+      return const Center(
+        child: Icon(
+          Icons.add_circle_outline,
+          color: Colors.blue,
+          size: 20,
+        ),
+      );
+    }
+
+    return const SizedBox();
   }
 }

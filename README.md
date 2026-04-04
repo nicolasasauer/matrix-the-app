@@ -36,9 +36,38 @@ Das Spiel endet, wenn das Deck erschöpft ist. Gewonnen hat, wer die **wenigsten
 
 ## Screenshots
 
+### 📱 Smartphone
+
 | Setup | Spielfeld | Scoreboard |
 |-------|-----------|------------|
 | ![Setup-Screen](docs/screenshots/setup.png) | ![Spielfeld](docs/screenshots/game.png) | ![Scoreboard](docs/screenshots/scoreboard.png) |
+
+| Verlauf | Einstellungen |
+|---------|---------------|
+| ![Verlauf](docs/screenshots/history.png) | ![Einstellungen](docs/screenshots/settings.png) |
+
+---
+
+### 🖥️ Tablet (Querformat)
+
+| Setup | Spielfeld |
+|-------|-----------|
+| ![Setup Tablet](docs/screenshots/setup_tablet.png) | ![Spielfeld Tablet](docs/screenshots/game_tablet.png) |
+
+---
+
+### 🎴 Animationen
+
+Die App enthält flüssige Animationen für ein besseres Spielerlebnis:
+
+| Karten-Flip beim Platzieren | Misserfolg & Zeilen-Räumung |
+|-----------------------------|------------------------------|
+| ![Karten-Flip-Animation](docs/screenshots/animation_flip.png) | ![Misserfolg-Animation](docs/screenshots/failure.png) |
+
+- **Karten-Flip**: Neu platzierte Karten klappen sich mit einer 3D-Rotation auf dem Spielfeld auf.
+- **Ausblend-Effekt**: Beim Misserfolg werden die betroffene Zeile und Spalte sanft ausgeblendet.
+- **AnimatedContainer**: Gültige Felder und Rahmenfarben wechseln animiert (200 ms Ease-In-Out).
+- Animationen können in den **Einstellungen** deaktiviert werden.
 
 ---
 

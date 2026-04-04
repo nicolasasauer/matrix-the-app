@@ -1,15 +1,42 @@
 import 'package:flutter/material.dart' hide Card;
 import 'package:provider/provider.dart';
 
+import '../l10n/app_strings.dart';
 import '../providers/game_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/game_board.dart';
 import '../widgets/guess_controls.dart';
 import '../widgets/player_info_bar.dart';
 import '../widgets/settings_dialog.dart';
+import '../widgets/card_face.dart';
 
-class GameScreen extends StatelessWidget {
+class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
+
+  @override
+  State<GameScreen> createState() => _GameScreenState();
+}
+
+class _GameScreenState extends State<GameScreen> {
+  /// Prevents the decision dialog from being triggered multiple times while
+  /// the phase remains [GamePhase.awaitingDecision].
+  bool _decisionDialogShown = false;
+
+  void _showDecisionDialog() {
+    _decisionDialogShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final provider = context.read<GameProvider>();
+      if (provider.phase != GamePhase.awaitingDecision) return;
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const _DecisionDialog(),
+      ).then((_) {
+        if (mounted) setState(() => _decisionDialogShown = false);
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,8 +44,24 @@ class GameScreen extends StatelessWidget {
     final engine = provider.engine;
 
     if (engine == null) {
-      return const Scaffold(body: Center(child: Text('No game started')));
+      return const Scaffold(
+        body: Center(child: Text(AppStrings.noGameStarted)),
+      );
     }
+
+    // Trigger decision dialog exactly once per awaitingDecision phase entry.
+    if (provider.phase == GamePhase.awaitingDecision && !_decisionDialogShown) {
+      _showDecisionDialog();
+    } else if (provider.phase != GamePhase.awaitingDecision) {
+      _decisionDialogShown = false;
+    }
+
+    // Determine whether any inline controls/banners should be shown below the
+    // board. The awaitingDecision phase is handled by the dialog instead.
+    final showInlineControls = provider.phase == GamePhase.makingGuess ||
+        provider.phase == GamePhase.showingFailure ||
+        provider.phase == GamePhase.matrixFull ||
+        provider.phase == GamePhase.gameOver;
 
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2E),
@@ -32,22 +75,22 @@ class GameScreen extends StatelessWidget {
               builder: (ctx) => AlertDialog(
                 backgroundColor: const Color(0xFF16213E),
                 title: const Text(
-                  'Spiel beenden?',
+                  AppStrings.endGameTitle,
                   style: TextStyle(color: Colors.white),
                 ),
                 content: const Text(
-                  'Möchtest du wirklich zum Startmenü? Das laufende Spiel wird abgebrochen.',
+                  AppStrings.endGameContent,
                   style: TextStyle(color: Colors.white70),
                 ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(ctx).pop(false),
-                    child: const Text('Abbrechen'),
+                    child: const Text(AppStrings.cancel),
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(ctx).pop(true),
                     child: const Text(
-                      'Ja, beenden',
+                      AppStrings.yesEnd,
                       style: TextStyle(color: Colors.red),
                     ),
                   ),
@@ -59,11 +102,14 @@ class GameScreen extends StatelessWidget {
             }
           },
         ),
-        title: const Text('Matrix', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          AppStrings.appTitle,
+          style: TextStyle(color: Colors.white),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.group, color: Colors.white),
-            tooltip: 'Spieler verwalten',
+            tooltip: AppStrings.managePlayersTitle,
             onPressed: () => showDialog(
               context: context,
               builder: (_) => const _PlayerManagementDialog(),
@@ -75,7 +121,7 @@ class GameScreen extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.white),
-            tooltip: 'Einstellungen',
+            tooltip: AppStrings.settingsTitle,
             onPressed: () => showDialog(
               context: context,
               builder: (_) => const SettingsDialog(),
@@ -83,31 +129,44 @@ class GameScreen extends StatelessWidget {
           ),
         ],
       ),
+      // ── Responsive body: board always visible, controls scroll if needed ──
       body: Column(
         children: [
           const PlayerInfoBar(),
           Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  children: [
-                    const GameBoard(),
-                    const SizedBox(height: 8),
-                    if (provider.phase == GamePhase.makingGuess &&
-                        provider.selectedPosition != null)
-                      GuessControls(position: provider.selectedPosition!),
-                    if (provider.phase == GamePhase.showingFailure)
-                      const _AnimatedBanner(
-                          shake: true, child: _FailureBanner()),
-                    if (provider.phase == GamePhase.awaitingDecision)
-                      const _AnimatedBanner(child: _DecisionBanner()),
-                    if (provider.phase == GamePhase.matrixFull)
-                      const _AnimatedBanner(child: _MatrixFullBanner()),
-                    if (provider.phase == GamePhase.gameOver)
-                      const _AnimatedBanner(child: _GameOverBanner()),
-                  ],
-                ),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  // Board fills all available height; LayoutBuilder inside
+                  // GameBoard constrains it to a square.
+                  const Expanded(child: GameBoard()),
+                  // Inline controls / banners: capped so the board is never
+                  // pushed off-screen.
+                  if (showInlineControls)
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 240),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 8),
+                            if (provider.phase == GamePhase.makingGuess &&
+                                provider.selectedPosition != null)
+                              GuessControls(
+                                  position: provider.selectedPosition!),
+                            if (provider.phase == GamePhase.showingFailure)
+                              const _AnimatedBanner(
+                                  shake: true, child: _FailureBanner()),
+                            if (provider.phase == GamePhase.matrixFull)
+                              const _AnimatedBanner(
+                                  child: _MatrixFullBanner()),
+                            if (provider.phase == GamePhase.gameOver)
+                              const _AnimatedBanner(child: _GameOverBanner()),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -116,6 +175,8 @@ class GameScreen extends StatelessWidget {
     );
   }
 }
+
+// ── Failure banner ────────────────────────────────────────────────────────────
 
 class _FailureBanner extends StatelessWidget {
   const _FailureBanner();
@@ -154,10 +215,12 @@ class _FailureBanner extends StatelessWidget {
           // Header
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            padding:
+                const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
               color: Colors.red.withValues(alpha: 0.3),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(18)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -165,7 +228,7 @@ class _FailureBanner extends StatelessWidget {
                 const Text('💀', style: TextStyle(fontSize: 22)),
                 const SizedBox(width: 10),
                 Text(
-                  '$playerName hat verkackt!',
+                  AppStrings.playerFailed(playerName),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 22,
@@ -200,7 +263,7 @@ class _FailureBanner extends StatelessWidget {
                       child: Column(
                         children: [
                           Text(
-                            'Gezogene Karte',
+                            AppStrings.drawnCard,
                             style: TextStyle(
                               color: Colors.red.shade300,
                               fontSize: 11,
@@ -209,16 +272,7 @@ class _FailureBanner extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            card.display,
-                            style: TextStyle(
-                              color: card.isRed
-                                  ? Colors.red.shade200
-                                  : Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          CardLarge(card: card),
                         ],
                       ),
                     ),
@@ -270,7 +324,7 @@ class _FailureBanner extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          penalty == 1 ? 'Schluck' : 'Schlücke',
+                          AppStrings.sipsLabel(penalty),
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
@@ -296,7 +350,7 @@ class _FailureBanner extends StatelessWidget {
                     color: Colors.red.shade300, size: 14),
                 const SizedBox(width: 4),
                 Text(
-                  'Zeile & Spalte werden abgeräumt',
+                  AppStrings.rowColCleared,
                   style: TextStyle(
                     color: Colors.red.shade300,
                     fontSize: 12,
@@ -317,7 +371,7 @@ class _FailureBanner extends StatelessWidget {
                 onPressed: provider.confirmFailure,
                 icon: const Icon(Icons.delete_sweep, color: Colors.white),
                 label: const Text(
-                  'Abräumen',
+                  AppStrings.confirmClear,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -342,71 +396,122 @@ class _FailureBanner extends StatelessWidget {
   }
 }
 
-class _DecisionBanner extends StatelessWidget {
-  const _DecisionBanner();
+// ── Decision dialog (shown as modal overlay after 3 correct calls) ────────────
+
+class _DecisionDialog extends StatelessWidget {
+  const _DecisionDialog();
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<GameProvider>();
-    return Container(
-      margin: const EdgeInsets.all(8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.green.shade900,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.green, width: 2),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.green.shade900,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.greenAccent, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.green.withValues(alpha: 0.5),
+              blurRadius: 24,
+              spreadRadius: 4,
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.check_circle, color: Colors.greenAccent, size: 22),
-              const SizedBox(width: 8),
-              Text(
-                '${provider.turnCalls} richtige Tipps!',
-                style: const TextStyle(
+              const Text(
+                AppStrings.decisionTitle,
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.check_circle,
+                      color: Colors.greenAccent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    AppStrings.correctCallsCount(provider.turnCalls),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                AppStrings.multiplierLabel(provider.globalMultiplier),
+                style: const TextStyle(
+                    color: Colors.greenAccent, fontSize: 16),
+              ),
+              const SizedBox(height: 20),
+              // Save & pass turn
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    provider.endTurn();
+                    Navigator.of(context).pop();
+                  },
+                  icon: const Icon(Icons.save_alt, color: Colors.white),
+                  label: Text(
+                    '${AppStrings.decisionSaveAndPass} (${provider.globalMultiplier}x)',
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade700,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Continue (risk it for higher multiplier)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    provider.continuePlay();
+                    Navigator.of(context).pop();
+                  },
+                  icon: const Icon(Icons.trending_up, color: Colors.white),
+                  label: Text(
+                    '${AppStrings.decisionContinue} (×${provider.globalMultiplier + 1} riskieren)',
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Multiplikator: ${provider.globalMultiplier}x',
-            style: const TextStyle(color: Colors.greenAccent, fontSize: 16),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton(
-                onPressed: provider.continuePlay,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Weitermachen', style: TextStyle(color: Colors.white)),
-              ),
-              ElevatedButton(
-                onPressed: provider.endTurn,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Zug beenden', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
 }
+
+// ── Game Over banner ──────────────────────────────────────────────────────────
 
 class _GameOverBanner extends StatelessWidget {
   const _GameOverBanner();
@@ -429,8 +534,11 @@ class _GameOverBanner extends StatelessWidget {
               Icon(Icons.celebration, color: Colors.yellow, size: 26),
               SizedBox(width: 8),
               Text(
-                'Spiel vorbei!',
-                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                AppStrings.gameOver,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold),
               ),
               SizedBox(width: 8),
               Icon(Icons.celebration, color: Colors.yellow, size: 26),
@@ -438,18 +546,25 @@ class _GameOverBanner extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           ElevatedButton(
-            onPressed: () => Navigator.pushReplacementNamed(context, '/scoreboard'),
+            onPressed: () =>
+                Navigator.pushReplacementNamed(context, '/scoreboard'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('Ergebnis anzeigen', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              AppStrings.showResult,
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
   }
 }
+
+// ── Matrix Full banner ────────────────────────────────────────────────────────
 
 class _MatrixFullBanner extends StatelessWidget {
   const _MatrixFullBanner();
@@ -470,7 +585,7 @@ class _MatrixFullBanner extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Color(0xFFFFD700), width: 3),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
             color: Color(0xFFFFD700),
             blurRadius: 24,
@@ -489,7 +604,7 @@ class _MatrixFullBanner extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'MATRIX VOLL!',
+              AppStrings.matrixFull,
               style: TextStyle(
                 color: Color(0xFFFFD700),
                 fontSize: 32,
@@ -500,7 +615,7 @@ class _MatrixFullBanner extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Unglaublich! Ihr habt die gesamte Matrix gelegt!',
+              AppStrings.matrixFullSubtitle,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -510,7 +625,7 @@ class _MatrixFullBanner extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Das schafft fast niemand – ihr seid Legenden! 🌟',
+              AppStrings.matrixFullLegend,
               style: TextStyle(color: Colors.white70, fontSize: 13),
               textAlign: TextAlign.center,
             ),
@@ -521,7 +636,7 @@ class _MatrixFullBanner extends StatelessWidget {
               icon: const Icon(Icons.emoji_events,
                   color: Colors.black, size: 20),
               label: const Text(
-                'Ergebnis anzeigen',
+                AppStrings.showResult,
                 style: TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
@@ -543,6 +658,8 @@ class _MatrixFullBanner extends StatelessWidget {
     );
   }
 }
+
+// ── Animated banner wrapper ───────────────────────────────────────────────────
 
 class _AnimatedBanner extends StatefulWidget {
   final Widget child;
@@ -640,6 +757,8 @@ class _AnimatedBannerState extends State<_AnimatedBanner>
   }
 }
 
+// ── Player management dialog ──────────────────────────────────────────────────
+
 class _PlayerManagementDialog extends StatefulWidget {
   const _PlayerManagementDialog();
 
@@ -673,7 +792,7 @@ class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
     return AlertDialog(
       backgroundColor: const Color(0xFF16213E),
       title: const Text(
-        'Spieler verwalten',
+        AppStrings.managePlayersTitle,
         style: TextStyle(color: Colors.white),
       ),
       content: SizedBox(
@@ -698,7 +817,8 @@ class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
                     ),
                     trailing: Switch(
                       value: player.active,
-                      onChanged: (_) => provider.togglePlayerActive(index),
+                      onChanged: (_) =>
+                          provider.togglePlayerActive(index),
                       activeColor: Colors.greenAccent,
                       inactiveThumbColor: Colors.white38,
                     ),
@@ -715,7 +835,7 @@ class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
                     textCapitalization: TextCapitalization.words,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Neuer Spieler...',
+                      hintText: AppStrings.addPlayerHint,
                       hintStyle: const TextStyle(color: Colors.white54),
                       filled: true,
                       fillColor: const Color(0xFF0F3460),
@@ -746,7 +866,8 @@ class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Fertig', style: TextStyle(color: Colors.white)),
+          child: const Text(AppStrings.done,
+              style: TextStyle(color: Colors.white)),
         ),
       ],
     );

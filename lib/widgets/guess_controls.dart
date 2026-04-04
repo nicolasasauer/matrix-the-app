@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart' hide Card;
 import 'package:provider/provider.dart';
 import '../domain/models.dart';
+import '../l10n/app_strings.dart';
 import '../providers/game_provider.dart';
+import 'card_face.dart';
 
 class GuessControls extends StatelessWidget {
   final Position position;
@@ -30,7 +32,8 @@ class GuessControls extends StatelessWidget {
           const SizedBox(height: 6),
           TextButton(
             onPressed: provider.cancelSelection,
-            child: const Text('Abbrechen', style: TextStyle(color: Colors.white54)),
+            child: const Text(AppStrings.cancelSelection,
+                style: TextStyle(color: Colors.white54)),
           ),
         ],
       ),
@@ -41,12 +44,15 @@ class GuessControls extends StatelessWidget {
     return Column(
       children: [
         Text(
-          '${neighbors.length} Nachbar${neighbors.length == 1 ? "" : "n"}',
+          AppStrings.neighborCount(neighbors.length),
           style: const TextStyle(color: Colors.white70, fontSize: 14),
         ),
-        Text(
-          neighbors.map((c) => c.display).join('  '),
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 12,
+          children: neighbors
+              .map((c) => CardInline(card: c, fontSize: 18))
+              .toList(),
         ),
       ],
     );
@@ -59,7 +65,7 @@ class GuessControls extends StatelessWidget {
           children: [
             Expanded(
               child: _GuessButton(
-                label: '▲ Höher',
+                label: AppStrings.higher,
                 guess: const Guess(GuessType.higher),
                 color: Colors.green,
               ),
@@ -67,7 +73,7 @@ class GuessControls extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: _GuessButton(
-                label: '▼ Niedriger',
+                label: AppStrings.lower,
                 guess: const Guess(GuessType.lower),
                 color: Colors.red,
               ),
@@ -79,7 +85,7 @@ class GuessControls extends StatelessWidget {
           children: [
             Expanded(
               child: _GuessButton(
-                label: 'Dazwischen',
+                label: AppStrings.inside,
                 guess: const Guess(GuessType.inside),
                 color: Colors.teal,
               ),
@@ -87,7 +93,7 @@ class GuessControls extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: _GuessButton(
-                label: 'Außerhalb',
+                label: AppStrings.outside,
                 guess: const Guess(GuessType.outside),
                 color: Colors.orange,
               ),
@@ -99,7 +105,7 @@ class GuessControls extends StatelessWidget {
           children: [
             Expanded(
               child: _GuessButton(
-                label: '✓ Hat Farbe',
+                label: AppStrings.hasSuit,
                 guess: const Guess(GuessType.hasSuit),
                 color: Colors.teal,
               ),
@@ -107,7 +113,7 @@ class GuessControls extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: _GuessButton(
-                label: '✗ Hat nicht',
+                label: AppStrings.doesNotHaveSuit,
                 guess: const Guess(GuessType.doesNotHaveSuit),
                 color: Colors.deepOrange,
               ),
@@ -122,7 +128,7 @@ class GuessControls extends StatelessWidget {
           children: Suit.values
               .map(
                 (suit) => _GuessButton(
-                  label: '${suit.symbol} ${suit.name}',
+                  label: suit.name,
                   guess: Guess(GuessType.exactSuit, suit: suit),
                   color: suit == Suit.heart || suit == Suit.diamond
                       ? Colors.red.shade700
