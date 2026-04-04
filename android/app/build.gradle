@@ -4,6 +4,7 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// 1. local.properties laden (Wichtig für Flutter Versionierung)
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
 if (localPropertiesFile.exists()) {
@@ -22,10 +23,27 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+// 2. key.properties laden (Für das Signing)
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace "com.nicolasasauer.matrix_the_app"
     compileSdk flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
+
+    // 3. Signing Configs definieren
+    signingConfigs {
+        release {
+            keyAlias = keystoreProperties['keyAlias']
+            keyPassword = keystoreProperties['keyPassword']
+            storeFile = keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword = keystoreProperties['storePassword']
+        }
+    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -46,11 +64,17 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            // Hier wird die oben definierte release-config genutzt
+            signingConfig signingConfigs.release
+            
+            minifyEnabled false 
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
 
+// 4. Dieser Block ist essenziell für das Flutter Gradle Plugin
 flutter {
     source '../..'
 }
