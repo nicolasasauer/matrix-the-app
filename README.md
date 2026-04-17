@@ -40,7 +40,7 @@ Das Spiel endet, wenn das Deck erschöpft ist. Gewonnen hat, wer die **wenigsten
 
 | Setup | Spielfeld | Scoreboard |
 |-------|-----------|------------|
-| ![Setup-Screen](docs/screenshots/setup.png) | ![Spielfeld](docs/screenshots/game.png) | ![Scoreboard](docs/screenshots/scoreboard.png) |
+| ![Setup-Screen](https://github.com/user-attachments/assets/e29b5e7b-57a2-4116-9313-bf3655f151a0) | ![Spielfeld](https://github.com/user-attachments/assets/7fe52105-974a-45d8-9a18-0998a6ef2920) | ![Scoreboard](docs/screenshots/scoreboard.png) |
 
 | Verlauf | Einstellungen |
 |---------|---------------|
