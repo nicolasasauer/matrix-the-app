@@ -41,6 +41,10 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # Fest eingestellt, damit ein neues Flutter-Release den Build nicht
+          # unbemerkt bricht. Beim Update auch android/ (Gradle, AGP, Kotlin)
+          # an die Vorlage von `flutter create` anpassen.
+          flutter-version: '3.50.0'
           cache: true
 
       - name: Install dependencies
@@ -73,6 +77,10 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # Fest eingestellt, damit ein neues Flutter-Release den Build nicht
+          # unbemerkt bricht. Beim Update auch android/ (Gradle, AGP, Kotlin)
+          # an die Vorlage von `flutter create` anpassen.
+          flutter-version: '3.50.0'
           cache: true
 
       - name: Install dependencies
