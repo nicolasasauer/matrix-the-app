@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService {
   static const _animationsKey = 'animations_enabled';
+  static const _streakKey = 'streak_multiplier_enabled';
 
   Future<bool> loadAnimationsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
@@ -11,5 +12,15 @@ class SettingsService {
   Future<void> setAnimationsEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_animationsKey, value);
+  }
+
+  Future<bool> loadStreakMultiplierEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_streakKey) ?? false;
+  }
+
+  Future<void> setStreakMultiplierEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_streakKey, value);
   }
 }

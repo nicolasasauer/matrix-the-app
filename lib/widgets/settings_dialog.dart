@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_strings.dart';
 import '../providers/settings_provider.dart';
 
 class SettingsDialog extends StatelessWidget {
@@ -11,16 +12,35 @@ class SettingsDialog extends StatelessWidget {
     return AlertDialog(
       backgroundColor: const Color(0xFF16213E),
       title: const Text(
-        'Einstellungen',
+        AppStrings.settingsTitle,
         style: TextStyle(color: Colors.white),
       ),
-      content: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Animationen', style: TextStyle(color: Colors.white70)),
-          Switch(
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              AppStrings.animations,
+              style: TextStyle(color: Colors.white70),
+            ),
             value: settings.animationsEnabled,
             onChanged: settings.setAnimationsEnabled,
+            activeColor: const Color(0xFF533483),
+          ),
+          const Divider(color: Colors.white12),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              AppStrings.streakRuleTitle,
+              style: TextStyle(color: Colors.white70),
+            ),
+            subtitle: const Text(
+              AppStrings.streakRuleDescription,
+              style: TextStyle(color: Colors.white38, fontSize: 12),
+            ),
+            value: settings.streakMultiplierEnabled,
+            onChanged: settings.setStreakMultiplierEnabled,
             activeColor: const Color(0xFF533483),
           ),
         ],
@@ -28,7 +48,8 @@ class SettingsDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Fertig', style: TextStyle(color: Colors.white)),
+          child: const Text(AppStrings.done,
+              style: TextStyle(color: Colors.white)),
         ),
       ],
     );

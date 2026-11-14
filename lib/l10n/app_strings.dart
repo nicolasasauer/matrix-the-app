@@ -24,12 +24,20 @@ class AppStrings {
 
   static const String managePlayersTitle = 'Spieler verwalten';
   static const String settingsTitle = 'Einstellungen';
+  static const String animations = 'Animationen';
+  static const String streakRuleTitle = 'Streak-Multiplikator';
+  static const String streakRuleDescription =
+      'Jeder fehlerfrei weitergegebene Zug erhöht den Multiplikator um 1 '
+      '(2x → 3x → 4x …), bis jemand einen Fehler macht.';
 
   // ── Player Info Bar ───────────────────────────────────────────────────────
 
   static String callsAndPenalty(int calls, int penalty) =>
       'Calls: $calls/3  |  Strafe: $penalty ';
   static String remainingCards(int n) => '$n Karten';
+  static String streakBadge(int passes) => '🔥 $passes';
+  static String streakTooltip(int passes) =>
+      '$passes Zug${passes == 1 ? '' : 'e'} ohne Fehler weitergegeben';
 
   // ── Guess Controls ────────────────────────────────────────────────────────
 

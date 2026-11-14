@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_strings.dart';
 import '../providers/game_provider.dart';
 
 class PlayerInfoBar extends StatelessWidget {
@@ -16,6 +17,8 @@ class PlayerInfoBar extends StatelessWidget {
     final calls = provider.turnCalls;
     final callsInSet = calls % 3;
     final multiplier = provider.globalMultiplier;
+    final cleanPasses = provider.cleanPasses;
+    final showStreak = provider.streakRuleEnabled && cleanPasses > 0;
 
     return Container(
       color: const Color(0xFF16213E),
@@ -38,9 +41,11 @@ class PlayerInfoBar extends StatelessWidget {
                   children: [
                     Text(
                       'Calls: $callsInSet/3  |  Strafe: ${player.totalPenalty} ',
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 13),
                     ),
-                    const Icon(Icons.local_bar, color: Colors.white70, size: 13),
+                    const Icon(Icons.local_bar,
+                        color: Colors.white70, size: 13),
                   ],
                 ),
               ],
@@ -53,20 +58,42 @@ class PlayerInfoBar extends StatelessWidget {
                 '$remaining Karten',
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: multiplier > 1 ? Colors.orange.shade800 : const Color(0xFF533483),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${multiplier}x',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showStreak) ...[
+                    Tooltip(
+                      message: AppStrings.streakTooltip(cleanPasses),
+                      child: Text(
+                        AppStrings.streakBadge(cleanPasses),
+                        style: const TextStyle(
+                          color: Colors.orangeAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: multiplier > 1
+                          ? Colors.orange.shade800
+                          : const Color(0xFF533483),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${multiplier}x',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),

@@ -12,11 +12,16 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settingsProvider = SettingsProvider(SettingsService());
   await settingsProvider.load();
+  final gameProvider = GameProvider(StorageService())
+    ..streakRuleEnabled = settingsProvider.streakMultiplierEnabled;
+  settingsProvider.addListener(() {
+    gameProvider.streakRuleEnabled = settingsProvider.streakMultiplierEnabled;
+  });
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => GameProvider(StorageService())),
+        ChangeNotifierProvider.value(value: gameProvider),
         ChangeNotifierProvider.value(value: settingsProvider),
       ],
       child: const MatrixApp(),

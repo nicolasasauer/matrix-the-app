@@ -468,7 +468,7 @@ class _DecisionDialog extends StatelessWidget {
                   },
                   icon: const Icon(Icons.save_alt, color: Colors.white),
                   label: Text(
-                    '${AppStrings.decisionSaveAndPass} (${provider.globalMultiplier}x)',
+                    '${AppStrings.decisionSaveAndPass} (${provider.passOnMultiplier}x)',
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
                   ),

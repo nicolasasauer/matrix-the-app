@@ -47,6 +47,12 @@ class GameProvider extends ChangeNotifier {
   int _inheritedMultiplier = 1;
   int _globalMultiplier = 1;
 
+  /// House rule (optional): each turn passed on without a mistake adds +1 to
+  /// the multiplier handed to the next player (2x, 3x, 4x, ...). Resets on the
+  /// next mistake.
+  bool streakRuleEnabled = false;
+  int _cleanPasses = 0;
+
   Position? _selectedPosition;
   Card? _drawnCard;
   int _clearedCards = 0;
@@ -62,6 +68,18 @@ class GameProvider extends ChangeNotifier {
   int get turnCalls => _turnCalls;
   int get globalMultiplier => _globalMultiplier;
   int get inheritedMultiplier => _inheritedMultiplier;
+
+  /// Number of consecutive turns passed on without a mistake.
+  int get cleanPasses => _cleanPasses;
+
+  /// The multiplier the next player receives if the current player ends the
+  /// turn now.
+  int get passOnMultiplier =>
+      nextMultiplier(_globalMultiplier, streakRule: streakRuleEnabled);
+
+  /// Pure helper so the pass-on rule can be unit-tested.
+  static int nextMultiplier(int current, {required bool streakRule}) =>
+      streakRule ? current + 1 : current;
   Position? get selectedPosition => _selectedPosition;
   Card? get drawnCard => _drawnCard;
   int get clearedCards => _clearedCards;
@@ -120,6 +138,7 @@ class GameProvider extends ChangeNotifier {
     _turnCalls = 0;
     _inheritedMultiplier = 1;
     _globalMultiplier = 1;
+    _cleanPasses = 0;
     _selectedPosition = null;
     _drawnCard = null;
     for (final p in _players) {
@@ -216,6 +235,7 @@ class GameProvider extends ChangeNotifier {
 
     _globalMultiplier = 1;
     _inheritedMultiplier = 1;
+    _cleanPasses = 0;
     _turnCalls = 0;
     _selectedPosition = null;
     _drawnCard = null;
@@ -252,7 +272,8 @@ class GameProvider extends ChangeNotifier {
     }
     _currentPlayerIndex = next;
 
-    final nextInherited = _globalMultiplier;
+    final nextInherited = passOnMultiplier;
+    if (streakRuleEnabled) _cleanPasses++;
 
     _inheritedMultiplier = nextInherited;
     _globalMultiplier = nextInherited;
