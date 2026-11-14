@@ -118,6 +118,10 @@ git push origin v1.1.0
 
 Der Tag bestimmt den `versionName` (`1.1.0`), der `versionCode` ist die fortlaufende Workflow-Run-Nummer. Ohne Tag (Push auf `main`, PRs oder manuell über *Actions → Build & Release → Run workflow*) werden die Dateien nur als Workflow-Artefakt bereitgestellt. Fehlen die Signing-Secrets, wird mit dem Debug-Key signiert – bei einem Release-Tag bricht der Build dann ab.
 
+### APK herunterladen
+
+Jeder Lauf des Workflows (Pull Request, Push auf `main`, manueller Start) legt unter *Actions → Lauf auswählen → Artifacts* die Datei `matrix-release` ab. Darin steckt `flutter-apk/app-release.apk` (ARM, für alle gängigen Handys) und die `.aab` für Google Play. Bei einem Tag `v*` hängen beide Dateien zusätzlich am GitHub-Release.
+
 ### Lokal signiert bauen
 
 `android/key.properties` anlegen (ist in `.gitignore`):
@@ -127,6 +131,10 @@ storeFile=/pfad/zu/upload-keystore.jks
 storePassword=...
 keyAlias=...
 keyPassword=...
+```
+
+```bash
+flutter build apk --release --target-platform android-arm,android-arm64
 ```
 
 ---

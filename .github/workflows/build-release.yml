@@ -125,9 +125,12 @@ jobs:
           --build-name=${{ steps.version.outputs.build_name }}
           --build-number=${{ steps.version.outputs.build_number }}
 
-      - name: Build release APK (zum direkten Installieren)
+      # Nur ARM (32 + 64 Bit) – deckt praktisch alle Android-Handys ab und
+      # spart die x86-Teile, die nur Emulatoren brauchen.
+      - name: Build release APK (zum direkten Installieren, ARM)
         run: >
           flutter build apk --release --no-tree-shake-icons
+          --target-platform android-arm,android-arm64
           --build-name=${{ steps.version.outputs.build_name }}
           --build-number=${{ steps.version.outputs.build_number }}
 
