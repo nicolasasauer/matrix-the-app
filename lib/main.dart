@@ -7,16 +7,24 @@ import 'services/settings_service.dart';
 import 'screens/setup_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/scoreboard_screen.dart';
+import 'screens/history_screen.dart';
+import 'screens/rules_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settingsProvider = SettingsProvider(SettingsService());
   await settingsProvider.load();
+  final gameProvider = GameProvider(StorageService())
+    ..streakRuleEnabled = settingsProvider.streakMultiplierEnabled;
+  settingsProvider.addListener(() {
+    gameProvider.streakRuleEnabled = settingsProvider.streakMultiplierEnabled;
+  });
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => GameProvider(StorageService())),
+        ChangeNotifierProvider.value(value: gameProvider),
         ChangeNotifierProvider.value(value: settingsProvider),
       ],
       child: const MatrixApp(),
@@ -31,20 +39,15 @@ class MatrixApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Matrix – Das Kartentrinkspiel',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF533483),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-      ),
+      theme: buildAppTheme(),
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
         '/': (context) => const SetupScreen(),
         '/game': (context) => const GameScreen(),
         '/scoreboard': (context) => const ScoreboardScreen(),
+        '/history': (context) => const HistoryScreen(),
+        '/rules': (context) => const RulesScreen(),
       },
     );
   }

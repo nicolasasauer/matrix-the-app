@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../domain/models.dart';
 
 enum PlaceResult { correct, wrong, gameFinished }
@@ -119,25 +121,31 @@ class GameEngine {
     }
   }
 
-  /// Clears the entire row and column of [pos], respawns the nucleus if needed,
-  /// and resets [successfulCalls]. Returns the number of cards cleared.
-  int applyFailure(Position pos) {
-    int cleared = 0;
+  /// Clears the entire row and column of [pos], puts those cards back into
+  /// the deck and shuffles it once, respawns the nucleus if needed, and
+  /// resets [successfulCalls]. Returns the number of cards cleared.
+  int applyFailure(Position pos, {Random? rng}) {
+    final removed = <Card>[];
     final row = pos.row;
     final col = pos.col;
 
     for (int c = 0; c < 5; c++) {
       if (grid[row][c] != null) {
+        removed.add(grid[row][c]!);
         grid[row][c] = null;
-        cleared++;
       }
     }
     for (int r = 0; r < 5; r++) {
       if (r != row && grid[r][col] != null) {
+        removed.add(grid[r][col]!);
         grid[r][col] = null;
-        cleared++;
       }
     }
+    final cleared = removed.length;
+
+    // Cleared cards go back into the deck, which is then shuffled once.
+    deck.returnCards(removed);
+    deck.shuffle(rng);
 
     // Respawn nucleus if it was cleared
     if (grid[2][2] == null) {
@@ -168,6 +176,8 @@ class GameEngine {
     return count;
   }
 
+  /// Safety net only: cleared cards return to the deck, so it cannot run
+  /// empty in a normal game (at most 25 of 52 cards are on the table).
   bool get isGameFinished => deck.isEmpty;
 
   bool get isMatrixFull {

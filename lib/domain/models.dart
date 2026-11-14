@@ -29,6 +29,9 @@ enum Rank {
   final int value;
   final String symbol;
   const Rank(this.value, this.symbol);
+
+  static Rank fromValue(int value) =>
+      Rank.values.firstWhere((r) => r.value == value);
 }
 
 class Card {
@@ -54,6 +57,20 @@ class Deck {
     }
     shuffle();
   }
+
+  /// Deck with a fixed order; the last card in [cards] is drawn first.
+  /// Mainly used for tests.
+  Deck.fromCards(List<Card> cards) {
+    _cards.addAll(cards);
+  }
+
+  /// Puts [cards] back into the deck (at the bottom, in the given order).
+  void returnCards(Iterable<Card> cards) {
+    _cards.insertAll(0, cards);
+  }
+
+  /// Cards that have not been drawn yet (i.e. never seen by the players).
+  List<Card> get cards => List.unmodifiable(_cards);
 
   void shuffle([Random? rng]) {
     _cards.shuffle(rng ?? Random());

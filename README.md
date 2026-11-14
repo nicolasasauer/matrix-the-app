@@ -19,55 +19,41 @@ Eine Startkarte (Nucleus) wird in der Mitte des 5×5-Rasters platziert. Spieler 
 
 **Falsch geraten** → gesamte Zeile und Spalte der Fehlposition werden geleert. Die Strafpunkte berechnen sich aus `geräumte Karten × geerbter Multiplikator`.
 
-Das Spiel endet, wenn das Deck erschöpft ist. Gewonnen hat, wer die **wenigsten Strafpunkte** hat.
+Abgeräumte Karten kommen zurück in den Stapel, der danach automatisch einmal gemischt wird. Das Spiel endet, wenn die **5×5-Matrix voll** ist oder es über das Menü **manuell beendet** wird. Gewonnen hat, wer die **wenigsten Strafpunkte** hat.
 
 ---
 
 ## Features
 
-- 👥 Spieler-Verwaltung (beliebig viele Spieler)
-- 🃏 5×5 Kartengitter mit dynamischer Positionsvalidierung
-- 🎯 Kontextsensitive Guess-Buttons je nach Nachbarzahl
-- 🔢 Multiplikator-System (1× – 4×), der an den nächsten Spieler weitergegeben wird
-- 📊 Scoreboard mit Strafpunkten pro Runde
-- 🌑 Dark-Theme mit lila Akzentfarbe
+- 🃏 Echte Kartenoptik auf einem 5×5-Tisch, freie Felder zeigen ihre Nachbarzahl
+- 🎯 Risiko vor dem Tipp: Zeile und Spalte werden markiert, die Schlücke stehen im Tipp-Sheet
+- 🍺 Pegel-Anzeige für den Multiplikator, inkl. Wert für die Weitergabe
+- 🔥 Hausregel **Streak-Multiplikator**: jede fehlerfreie Weitergabe +1x (2x, 3x, 4x …)
+- 📈 Optionale Trefferchancen, berechnet aus den noch nicht gezogenen Karten
+- 💀 Fehler als Vollbild – der Bestätigen-Knopf ist immer ohne Scrollen sichtbar
+- 👥 Spieler mit eigener Farbe – auch im laufenden Spiel hinzufügen, entfernen, umsortieren oder aussetzen lassen
+- 🔀 Stapel mit fester Reihenfolge, jederzeit per Klick mischbar; nach einem Fehler wandern die abgeräumten Karten zurück und der Stapel wird mit Animation gemischt
+- 🏁 Spielende bei voller Matrix oder per „Spiel beenden“ – wird im Verlauf gespeichert
+- 📊 Auswertung mit Rangliste, Highlights, Fehler-Verlauf und Revanche
+- 📖 Regel-Seite für neue Mitspieler
 
 ---
 
 ## Screenshots
 
-### 📱 Smartphone
+| Start | Spielfeld | Fehler |
+|-------|-----------|--------|
+| ![Start](docs/screenshots/setup.png) | ![Spielfeld](docs/screenshots/game.png) | ![Fehler](docs/screenshots/failure.png) |
 
-| Setup | Spielfeld | Scoreboard |
-|-------|-----------|------------|
-| ![Setup-Screen](docs/screenshots/setup.png) | ![Spielfeld](docs/screenshots/game.png) | ![Scoreboard](docs/screenshots/scoreboard.png) |
+| Entscheidung | Spieler verwalten | Auswertung |
+|--------------|-------------------|------------|
+| ![Entscheidung](docs/screenshots/decision.png) | ![Spieler verwalten](docs/screenshots/players.png) | ![Auswertung](docs/screenshots/scoreboard.png) |
 
-| Verlauf | Einstellungen |
-|---------|---------------|
-| ![Verlauf](docs/screenshots/history.png) | ![Einstellungen](docs/screenshots/settings.png) |
+**Tablet (Querformat)**
 
----
+![Spielfeld Tablet](docs/screenshots/game_tablet.png)
 
-### 🖥️ Tablet (Querformat)
-
-| Setup | Spielfeld |
-|-------|-----------|
-| ![Setup Tablet](docs/screenshots/setup_tablet.png) | ![Spielfeld Tablet](docs/screenshots/game_tablet.png) |
-
----
-
-### 🎴 Animationen
-
-Die App enthält flüssige Animationen für ein besseres Spielerlebnis:
-
-| Karten-Flip beim Platzieren | Misserfolg & Zeilen-Räumung |
-|-----------------------------|------------------------------|
-| ![Karten-Flip-Animation](docs/screenshots/animation_flip.png) | ![Misserfolg-Animation](docs/screenshots/failure.png) |
-
-- **Karten-Flip**: Neu platzierte Karten klappen sich mit einer 3D-Rotation auf dem Spielfeld auf.
-- **Ausblend-Effekt**: Beim Misserfolg werden die betroffene Zeile und Spalte sanft ausgeblendet.
-- **AnimatedContainer**: Gültige Felder und Rahmenfarben wechseln animiert (200 ms Ease-In-Out).
-- Animationen können in den **Einstellungen** deaktiviert werden.
+Neu gelegte Karten klappen mit einer 3D-Drehung auf, abgeräumte Karten blenden aus, und der Fehler-Screen wackelt kurz. Animationen lassen sich in den Hausregeln abschalten.
 
 ---
 
@@ -97,24 +83,90 @@ flutter test
 
 ---
 
+## Release-Build & Google Play (GitHub Actions)
+
+Der Workflow `.github/workflows/build-release.yml` testet, baut eine signierte **AAB** (für Google Play) und **APK** und lädt bei einem Tag `v*` optional direkt in die Play Console hoch.
+
+### 1. Secrets hinterlegen
+
+*Repository → Settings → Secrets and variables → Actions → New repository secret*
+
+| Secret | Inhalt |
+|--------|--------|
+| `ANDROID_KEYSTORE_BASE64` | Upload-Keystore als Base64: `base64 -w0 upload-keystore.jks` (macOS: `base64 -i upload-keystore.jks`) |
+| `ANDROID_KEYSTORE_PASSWORD` | Passwort des Keystores |
+| `ANDROID_KEY_ALIAS` | Alias des Schlüssels |
+| `ANDROID_KEY_PASSWORD` | Passwort des Schlüssels |
+| `PLAY_SERVICE_ACCOUNT_JSON` | *(optional)* JSON-Key eines Google-Cloud-Service-Accounts, dem in der Play Console Release-Rechte für die App gegeben wurden |
+
+Bei aktivierter **Play App Signing** gehört hier der *Upload-Key* hin, nicht der App-Signing-Key von Google.
+
+Optionale **Variables** (gleiche Seite, Tab *Variables*):
+
+| Variable | Standard | Zweck |
+|----------|----------|-------|
+| `VERSION_CODE_OFFSET` | `0` | Wird zur Run-Nummer addiert, falls in Play schon höhere versionCodes existieren |
+| `PLAY_TRACK` | `internal` | `internal`, `alpha`, `beta` oder `production` |
+| `PLAY_RELEASE_STATUS` | `draft` | `completed` erst, wenn die App in der Play Console bereits veröffentlicht ist |
+
+### 2. Release auslösen
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+Der Tag bestimmt den `versionName` (`1.1.0`), der `versionCode` ist die fortlaufende Workflow-Run-Nummer. Ohne Tag (Push auf `main`, PRs oder manuell über *Actions → Build & Release → Run workflow*) werden die Dateien nur als Workflow-Artefakt bereitgestellt. Fehlen die Signing-Secrets, wird mit dem Debug-Key signiert – bei einem Release-Tag bricht der Build dann ab.
+
+### APK herunterladen
+
+Jeder Lauf des Workflows (Pull Request, Push auf `main`, manueller Start) legt unter *Actions → Lauf auswählen → Artifacts* die Datei `matrix-release` ab. Darin steckt `flutter-apk/app-release.apk` (ARM, für alle gängigen Handys) und die `.aab` für Google Play. Bei einem Tag `v*` hängen beide Dateien zusätzlich am GitHub-Release.
+
+### Lokal signiert bauen
+
+`android/key.properties` anlegen (ist in `.gitignore`):
+
+```properties
+storeFile=/pfad/zu/upload-keystore.jks
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+```bash
+flutter build apk --release --target-platform android-arm,android-arm64
+```
+
+---
+
 ## Projektstruktur
 
 ```
 lib/
 ├── domain/
-│   └── models.dart          # Datenmodelle: Card, Deck, Position, Guess, Player
+│   └── models.dart          # Datenmodelle: Card, Deck, Position, Guess
 ├── engine/
 │   └── game_engine.dart     # Spiellogik: Platzierung, Guess-Auswertung, Failure-Mechanik
+├── l10n/
+│   └── app_strings.dart     # Alle sichtbaren Texte
 ├── providers/
-│   └── game_provider.dart   # State-Management (ChangeNotifier / Provider)
+│   ├── game_provider.dart   # Spielzustand, Multiplikator, Streak, Vorschau-Werte
+│   └── settings_provider.dart # Hausregeln & Einstellungen
 ├── screens/
-│   ├── setup_screen.dart    # Spieler-Verwaltung vor dem Spiel
-│   ├── game_screen.dart     # Hauptspielbildschirm
-│   └── scoreboard_screen.dart # Ergebnisanzeige nach dem Spiel
+│   ├── setup_screen.dart    # Start: Spieler, Hausregeln
+│   ├── game_screen.dart     # Spieltisch, Sheets, Fehler-Vollbild
+│   ├── scoreboard_screen.dart # Auswertung & Revanche
+│   ├── history_screen.dart  # Verlauf gespeicherter Spiele
+│   └── rules_screen.dart    # Regeln
+├── theme/
+│   └── app_theme.dart       # Farb- und Schrift-Tokens, ThemeData
 ├── widgets/
-│   ├── game_board.dart      # 5×5 Kartengitter-Widget
-│   ├── guess_controls.dart  # Vorhersage-Buttons
-│   └── player_info_bar.dart # Statusleiste (Spieler, Calls, Strafpunkte, Multiplikator)
+│   ├── card_face.dart       # Kartenvorderseiten
+│   ├── game_board.dart      # 5×5 Tisch (passt sich immer ohne Scrollen ein)
+│   ├── guess_controls.dart  # Tipp-Sheet inkl. Wertebereichen & Chancen
+│   ├── player_info_bar.dart # Spielerleiste & Pegel
+│   ├── settings_dialog.dart # Hausregeln-Liste & Einstellungsdialog
+│   └── sheet.dart           # Bottom-Sheet, Knöpfe, Auswahlkacheln
 └── main.dart                # App-Einstiegspunkt & Routing
 ```
 

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../domain/game_record.dart';
+import '../l10n/app_strings.dart';
 import '../providers/game_provider.dart';
+import '../theme/app_theme.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -12,35 +15,11 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   late Future<List<GameRecord>> _historyFuture;
-  TabController? _tabController;
 
   @override
   void initState() {
     super.initState();
     _historyFuture = context.read<GameProvider>().storageService.loadHistory();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final controller = DefaultTabController.of(context);
-    if (_tabController != controller) {
-      _tabController?.removeListener(_onTabChanged);
-      _tabController = controller;
-      _tabController!.addListener(_onTabChanged);
-    }
-  }
-
-  void _onTabChanged() {
-    if (_tabController?.index == 1) {
-      _refresh();
-    }
-  }
-
-  @override
-  void dispose() {
-    _tabController?.removeListener(_onTabChanged);
-    super.dispose();
   }
 
   void _refresh() {
@@ -50,91 +29,73 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
+  Future<void> _confirmClear() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.raised,
+        title: Text('Verlauf löschen?', style: AppText.display(20)),
+        content: Text(
+          'Alle gespeicherten Spiele werden unwiderruflich gelöscht.',
+          style: AppText.body(14, color: AppColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(AppStrings.cancel,
+                style: AppText.body(14, color: AppColors.fg)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Löschen',
+                style: AppText.body(14,
+                    weight: FontWeight.w600, color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await context.read<GameProvider>().storageService.clearHistory();
+      _refresh();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<GameRecord>>(
-      future: _historyFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final history = snapshot.data ?? [];
-
-        if (history.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.history, color: Colors.white38, size: 64),
-                const SizedBox(height: 16),
-                const Text(
-                  'Noch keine Spiele gespielt',
-                  style: TextStyle(color: Colors.white54, fontSize: 16),
-                ),
-              ],
-            ),
+    return Scaffold(
+      backgroundColor: AppColors.table,
+      appBar: AppBar(
+        title: const Text(AppStrings.historyTitle),
+        actions: [
+          IconButton(
+            onPressed: _confirmClear,
+            tooltip: 'Verlauf löschen',
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
+      ),
+      body: FutureBuilder<List<GameRecord>>(
+        future: _historyFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final history = snapshot.data ?? [];
+          if (history.isEmpty) {
+            return Center(
+              child: Text('Noch keine Spiele gespielt',
+                  style: AppText.body(15, color: AppColors.muted)),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            itemCount: history.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) =>
+                _GameRecordCard(record: history[index]),
           );
-        }
-
-        return Column(
-          children: [
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: history.length,
-                itemBuilder: (context, index) =>
-                    _GameRecordCard(record: history[index]),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: TextButton.icon(
-                onPressed: () async {
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      backgroundColor: const Color(0xFF16213E),
-                      title: const Text(
-                        'Verlauf löschen?',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      content: const Text(
-                        'Alle gespeicherten Spiele werden unwiderruflich gelöscht.',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Abbrechen',
-                              style: TextStyle(color: Colors.white54)),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Löschen',
-                              style: TextStyle(color: Colors.redAccent)),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirmed == true && context.mounted) {
-                    await context
-                        .read<GameProvider>()
-                        .storageService
-                        .clearHistory();
-                    _refresh();
-                  }
-                },
-                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                label: const Text(
-                  'Verlauf löschen',
-                  style: TextStyle(color: Colors.redAccent),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+        },
+      ),
     );
   }
 }
@@ -144,175 +105,99 @@ class _GameRecordCard extends StatelessWidget {
 
   const _GameRecordCard({required this.record});
 
+  String _timeLabel() {
+    final diff = DateTime.now().difference(record.playedAt);
+    if (diff.inMinutes < 1) return 'Gerade eben';
+    if (diff.inHours < 1) return 'Vor ${diff.inMinutes} Min.';
+    if (diff.inDays < 1) return 'Vor ${diff.inHours} Std.';
+    if (diff.inDays == 1) return 'Gestern';
+    final d = record.playedAt;
+    return '${d.day.toString().padLeft(2, '0')}.'
+        '${d.month.toString().padLeft(2, '0')}.${d.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Fewest sips first.
     final sorted = [...record.players]
-      ..sort((a, b) => b.totalPenalty.compareTo(a.totalPenalty));
+      ..sort((a, b) => a.totalPenalty.compareTo(b.totalPenalty));
 
-    final now = DateTime.now();
-    final diff = now.difference(record.playedAt);
-    final String timeLabel;
-    if (diff.inMinutes < 1) {
-      timeLabel = 'Gerade eben';
-    } else if (diff.inHours < 1) {
-      timeLabel = 'Vor ${diff.inMinutes} Min.';
-    } else if (diff.inDays < 1) {
-      timeLabel = 'Vor ${diff.inHours} Std.';
-    } else if (diff.inDays == 1) {
-      timeLabel = 'Gestern';
-    } else {
-      final d = record.playedAt;
-      timeLabel =
-          '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
-    }
-
-    return Card(
-      color: const Color(0xFF0F3460),
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row
-            Row(
-              children: [
-                const Icon(Icons.access_time, color: Colors.white38, size: 14),
-                const SizedBox(width: 4),
-                Text(
-                  timeLabel,
-                  style:
-                      const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-                const Spacer(),
-                if (record.matrixFull)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('🏆', style: TextStyle(fontSize: 12)),
-                        SizedBox(width: 4),
-                        Text(
-                          'Matrix Voll!',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.raised,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(_timeLabel(), style: AppText.mono(11.5)),
+              const Spacer(),
+              if (record.matrixFull)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.gold),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Players
-            ...sorted.asMap().entries.map((e) {
-              final i = e.key;
-              final p = e.value;
-              final rankColor = i == 0
-                  ? const Color(0xFFFFD700)
-                  : i == 1
-                      ? const Color(0xFFC0C0C0)
-                      : i == 2
-                          ? const Color(0xFFCD7F32)
-                          : Colors.white70;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(
-                  children: [
-                    Text(
-                      '${i + 1}.',
-                      style: TextStyle(
-                          color: rankColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        p.name,
-                        style: TextStyle(color: rankColor, fontSize: 13),
-                      ),
-                    ),
-                    if (p.maxReceivedMultiplier > 1 || p.maxCreatedMultiplier > 0) ...[
-                      if (p.maxReceivedMultiplier > 1)
-                        Text(
-                          '↓${p.maxReceivedMultiplier}x ',
-                          style: const TextStyle(
-                            color: Colors.orangeAccent,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      if (p.maxCreatedMultiplier > 0)
-                        Text(
-                          '+${p.maxCreatedMultiplier}x ',
-                          style: const TextStyle(
-                            color: Colors.greenAccent,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                    ],
-                    if (p.correctGuesses + p.wrongGuesses > 0) ...[
-                      Text(
-                        '✓${p.correctGuesses} ✗${p.wrongGuesses} ',
-                        style: const TextStyle(
-                          color: Colors.white38,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                    Text(
-                      '${p.totalPenalty} ',
-                      style: const TextStyle(
-                          color: Colors.yellow,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13),
-                    ),
-                    const Icon(Icons.local_bar,
-                        color: Colors.yellow, size: 13),
-                  ],
+                  child: Text(AppStrings.matrixFull,
+                      style: AppText.body(11,
+                          weight: FontWeight.w600, color: AppColors.gold)),
                 ),
-              );
-            }),
-
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  final provider = context.read<GameProvider>();
-                  provider.setPlayers(
-                      record.players.map((p) => p.name).toList());
-                  DefaultTabController.of(context).animateTo(0);
-                },
-                icon: const Icon(Icons.replay, size: 16, color: Colors.white),
-                label: const Text(
-                  'Nochmal spielen',
-                  style: TextStyle(color: Colors.white, fontSize: 13),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF533483),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (var i = 0; i < sorted.length; i++)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    child: Text('${i + 1}', style: AppText.mono(12)),
+                  ),
+                  Expanded(
+                    child: Text(sorted[i].name,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.body(14,
+                            weight:
+                                i == 0 ? FontWeight.w600 : FontWeight.w400)),
+                  ),
+                  Text(
+                    '✓${sorted[i].correctGuesses} ✗${sorted[i].wrongGuesses}',
+                    style: AppText.mono(11),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 36,
+                    child: Text('${sorted[i].totalPenalty}',
+                        textAlign: TextAlign.right,
+                        style:
+                            AppText.mono(14, weight: 700, color: AppColors.fg)),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () {
+                context
+                    .read<GameProvider>()
+                    .setPlayers(record.players.map((p) => p.name).toList());
+                Navigator.pop(context);
+              },
+              icon: const Icon(Icons.replay, size: 16, color: AppColors.amber),
+              label: Text('Mit diesen Spielern',
+                  style: AppText.body(13,
+                      weight: FontWeight.w600, color: AppColors.amber)),
+            ),
+          ),
+        ],
       ),
     );
   }
