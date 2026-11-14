@@ -1,0 +1,105 @@
+name: APK bauen
+
+# Baut nur die installierbare APK (ARM) – ohne App Bundle, ohne Release und
+# ohne Google Play. Ergebnis: Actions → Lauf → Artifacts → "matrix-apk".
+#
+# Signiert wird mit dem Upload-Key aus den Repository-Secrets
+# (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
+# ANDROID_KEY_PASSWORD). Fehlen sie, wird mit dem Debug-Key signiert – die APK
+# lässt sich trotzdem installieren.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Test & APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # für die Versionsnummer (Anzahl Commits)
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          # Fest eingestellt; beim Update android/ an `flutter create` anpassen.
+          flutter-version: '3.50.0'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Restore upload keystore from secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::Keine Signing-Secrets – APK wird mit dem Debug-Key signiert."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          {
+            echo "storeFile=upload-keystore.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+
+      - name: Compute version
+        id: version
+        env:
+          OFFSET: ${{ vars.VERSION_CODE_OFFSET || '0' }}
+        run: |
+          echo "build_number=$(( $(git rev-list --count HEAD) + OFFSET ))" >> "$GITHUB_OUTPUT"
+          echo "build_name=$(grep '^version:' pubspec.yaml | sed -E 's/version: *([^+]+).*/\1/')" >> "$GITHUB_OUTPUT"
+
+      # Nur ARM (32 + 64 Bit) – deckt praktisch alle Android-Handys ab.
+      - name: Build APK (ARM)
+        run: >
+          flutter build apk --release --no-tree-shake-icons
+          --target-platform android-arm,android-arm64
+          --build-name=${{ steps.version.outputs.build_name }}
+          --build-number=${{ steps.version.outputs.build_number }}
+
+      - name: Remove keystore
+        if: always()
+        run: rm -f android/app/upload-keystore.jks android/key.properties
+
+      - name: Rename APK
+        run: >
+          mv build/app/outputs/flutter-apk/app-release.apk
+          "matrix-${{ steps.version.outputs.build_name }}-${{ steps.version.outputs.build_number }}-arm.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: matrix-apk
+          path: matrix-*-arm.apk
+          retention-days: 30
