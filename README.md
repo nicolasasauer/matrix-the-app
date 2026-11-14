@@ -97,6 +97,54 @@ flutter test
 
 ---
 
+## Release-Build & Google Play (GitHub Actions)
+
+Der Workflow `.github/workflows/build-release.yml` testet, baut eine signierte **AAB** (für Google Play) und **APK** und lädt bei einem Tag `v*` optional direkt in die Play Console hoch.
+
+### 1. Secrets hinterlegen
+
+*Repository → Settings → Secrets and variables → Actions → New repository secret*
+
+| Secret | Inhalt |
+|--------|--------|
+| `ANDROID_KEYSTORE_BASE64` | Upload-Keystore als Base64: `base64 -w0 upload-keystore.jks` (macOS: `base64 -i upload-keystore.jks`) |
+| `ANDROID_KEYSTORE_PASSWORD` | Passwort des Keystores |
+| `ANDROID_KEY_ALIAS` | Alias des Schlüssels |
+| `ANDROID_KEY_PASSWORD` | Passwort des Schlüssels |
+| `PLAY_SERVICE_ACCOUNT_JSON` | *(optional)* JSON-Key eines Google-Cloud-Service-Accounts, dem in der Play Console Release-Rechte für die App gegeben wurden |
+
+Bei aktivierter **Play App Signing** gehört hier der *Upload-Key* hin, nicht der App-Signing-Key von Google.
+
+Optionale **Variables** (gleiche Seite, Tab *Variables*):
+
+| Variable | Standard | Zweck |
+|----------|----------|-------|
+| `VERSION_CODE_OFFSET` | `0` | Wird zur Run-Nummer addiert, falls in Play schon höhere versionCodes existieren |
+| `PLAY_TRACK` | `internal` | `internal`, `alpha`, `beta` oder `production` |
+| `PLAY_RELEASE_STATUS` | `draft` | `completed` erst, wenn die App in der Play Console bereits veröffentlicht ist |
+
+### 2. Release auslösen
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+Der Tag bestimmt den `versionName` (`1.1.0`), der `versionCode` ist die fortlaufende Workflow-Run-Nummer. Ohne Tag (Push auf `main`, PRs oder manuell über *Actions → Build & Release → Run workflow*) werden die Dateien nur als Workflow-Artefakt bereitgestellt. Fehlen die Signing-Secrets, wird mit dem Debug-Key signiert – bei einem Release-Tag bricht der Build dann ab.
+
+### Lokal signiert bauen
+
+`android/key.properties` anlegen (ist in `.gitignore`):
+
+```properties
+storeFile=/pfad/zu/upload-keystore.jks
+storePassword=...
+keyAlias=...
+keyPassword=...
+```
+
+---
+
 ## Projektstruktur
 
 ```
