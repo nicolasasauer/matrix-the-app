@@ -31,7 +31,8 @@ Das Spiel endet, wenn das Deck erschöpft ist. Gewonnen hat, wer die **wenigsten
 - 🔥 Hausregel **Streak-Multiplikator**: jede fehlerfreie Weitergabe +1x (2x, 3x, 4x …)
 - 📈 Optionale Trefferchancen, berechnet aus den noch nicht gezogenen Karten
 - 💀 Fehler als Vollbild – der Bestätigen-Knopf ist immer ohne Scrollen sichtbar
-- 👥 Spieler mit eigener Farbe, per Ziehen sortierbar, im Spiel aktivier-/deaktivierbar
+- 👥 Spieler mit eigener Farbe – auch im laufenden Spiel hinzufügen, entfernen, umsortieren oder aussetzen lassen
+- 🔀 Stapel mit fester Reihenfolge, der sich jederzeit per Klick mischen lässt
 - 📊 Auswertung mit Rangliste, Highlights, Fehler-Verlauf und Revanche
 - 📖 Regel-Seite für neue Mitspieler
 
@@ -43,9 +44,9 @@ Das Spiel endet, wenn das Deck erschöpft ist. Gewonnen hat, wer die **wenigsten
 |-------|-----------|--------|
 | ![Start](docs/screenshots/setup.png) | ![Spielfeld](docs/screenshots/game.png) | ![Fehler](docs/screenshots/failure.png) |
 
-| Entscheidung | Auswertung | Regeln |
-|--------------|------------|--------|
-| ![Entscheidung](docs/screenshots/decision.png) | ![Auswertung](docs/screenshots/scoreboard.png) | ![Regeln](docs/screenshots/rules.png) |
+| Entscheidung | Spieler verwalten | Auswertung |
+|--------------|-------------------|------------|
+| ![Entscheidung](docs/screenshots/decision.png) | ![Spieler verwalten](docs/screenshots/players.png) | ![Auswertung](docs/screenshots/scoreboard.png) |
 
 **Tablet (Querformat)**
 

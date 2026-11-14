@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../domain/models.dart';
@@ -175,20 +176,86 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void removePlayer(int index) {
-    if (index < 0 || index >= _players.length) return;
-    _players.removeAt(index);
-    if (_currentPlayerIndex >= _players.length) {
-      _currentPlayerIndex = 0;
+  bool get _gameRunning =>
+      _engine != null &&
+      _phase != GamePhase.gameOver &&
+      _phase != GamePhase.matrixFull;
+
+  /// Whether the player at [index] may be removed or sit out right now.
+  /// In a running game at least one active player must remain, and the
+  /// current player cannot leave while their sips are still on screen.
+  bool canRemovePlayer(int index, {bool inGame = false}) {
+    if (index < 0 || index >= _players.length) return false;
+    if (!inGame || !_gameRunning) return true;
+    final p = _players[index];
+    if (p.active && activePlayerCount <= 1) return false;
+    if (index == _currentPlayerIndex && _phase == GamePhase.showingFailure) {
+      return false;
     }
+    return true;
+  }
+
+  /// Removes a player. With [inGame] the running round continues: if it was
+  /// the current player's turn, the next active player takes over with the
+  /// same multiplier (the unfinished turn is dropped).
+  void removePlayer(int index, {bool inGame = false}) {
+    if (!canRemovePlayer(index, inGame: inGame)) return;
+    final wasCurrent = index == _currentPlayerIndex;
+    _players.removeAt(index);
+    if (_players.isEmpty) {
+      _currentPlayerIndex = 0;
+    } else if (index < _currentPlayerIndex) {
+      _currentPlayerIndex--;
+    } else if (wasCurrent) {
+      // The slot now holds the following player.
+      _currentPlayerIndex = index % _players.length;
+      if (!_players[_currentPlayerIndex].active) {
+        _currentPlayerIndex = _nextActiveIndex();
+      }
+      if (inGame && _gameRunning) _restartTurn();
+    }
+    if (inGame && _gameRunning) _autoSave();
     notifyListeners();
   }
 
   void togglePlayerActive(int index) {
     if (index < 0 || index >= _players.length) return;
     final player = _players[index];
-    if (player.active && activePlayerCount <= 1) return;
+    if (player.active && !canRemovePlayer(index, inGame: true)) return;
     player.active = !player.active;
+    if (!player.active && index == _currentPlayerIndex && _gameRunning) {
+      _currentPlayerIndex = _nextActiveIndex();
+      _restartTurn();
+    }
+    notifyListeners();
+  }
+
+  /// Starts a fresh turn for the (new) current player, keeping the
+  /// multiplier that was handed to the previous one.
+  void _restartTurn() {
+    _turnCalls = 0;
+    _globalMultiplier = _inheritedMultiplier;
+    _selectedPosition = null;
+    _drawnCard = null;
+    if (_phase == GamePhase.makingGuess ||
+        _phase == GamePhase.awaitingDecision) {
+      _phase = GamePhase.selectingPosition;
+    }
+  }
+
+  /// Number of times the deck was shuffled during this round.
+  int get shuffleCount => _shuffleCount;
+  int _shuffleCount = 0;
+
+  /// Shuffles the cards still in the deck. The deck keeps a fixed order at
+  /// all times; it only changes when this is called (or a new game starts).
+  void shuffleDeck([Random? rng]) {
+    final engine = _engine;
+    if (engine == null || !_gameRunning || engine.deck.isEmpty) return;
+    engine.deck.shuffle(rng);
+    _shuffleCount++;
+    HapticFeedback.selectionClick();
+    _autoSave();
     notifyListeners();
   }
 
@@ -205,6 +272,7 @@ class GameProvider extends ChangeNotifier {
     if (_players.isEmpty) return;
     _engine = engine ?? GameEngine.newGame();
     _penaltyTimeline.clear();
+    _shuffleCount = 0;
     _lastGuess = null;
     _lastNeighbors = const [];
     _pendingClearCount = 0;

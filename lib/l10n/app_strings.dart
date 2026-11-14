@@ -52,6 +52,9 @@ class AppStrings {
 
   static String sipsShort(int n) => '$n Schl.';
   static const String cardsInDeck = 'im Stapel';
+  static const String shuffle = 'Mischen';
+  static const String shuffled = 'Gemischt';
+  static const String shuffleDeck = 'Restlichen Stapel mischen';
   static String streakLine(int passes) =>
       '$passes ${passes == 1 ? 'Zug' : 'Züge'} fehlerfrei';
   static String passOnLine(int m) => 'Weitergabe: ${m}x';
@@ -141,6 +144,20 @@ class AppStrings {
   // ── Player management ────────────────────────────────────────────────────
 
   static const String newPlayerHint = 'Neuer Spieler…';
+  static const String isTurn = 'ist dran';
+  static const String sitsOut = 'setzt aus';
+  static const String sitOutToggle = 'Mitspielen';
+  static String removeTitle(String name) => '$name entfernen?';
+  static const String removeContent =
+      'Die Schlücke dieses Spielers verschwinden aus der Auswertung. '
+      'Ist er gerade dran, übernimmt der nächste Spieler mit demselben Pegel.';
+  static const String removeConfirm = 'Entfernen';
+  static const String cantRemoveLast =
+      'Mindestens ein Spieler muss mitspielen.';
+  static const String cantRemoveDuringFailure =
+      'Erst die Schlücke bestätigen, dann entfernen.';
+  static const String managePlayersHint =
+      'Ziehen zum Sortieren · Schalter zum Aussetzen';
   static const String add = 'Hinzufügen';
   static const String done = 'Fertig';
 }

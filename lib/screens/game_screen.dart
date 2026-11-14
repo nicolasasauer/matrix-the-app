@@ -499,6 +499,7 @@ class _ShakeInState extends State<_ShakeIn>
 
 // ── Player management dialog ────────────────────────────────────────────────
 
+/// Add, remove, sort and pause players while the game is running.
 class _PlayerManagementDialog extends StatefulWidget {
   const _PlayerManagementDialog();
 
@@ -524,53 +525,162 @@ class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
     }
   }
 
+  Future<void> _remove(int index) async {
+    final provider = context.read<GameProvider>();
+    final player = provider.players[index];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.raised,
+        title: Text(AppStrings.removeTitle(player.name),
+            style: AppText.display(20)),
+        content: Text(AppStrings.removeContent,
+            style: AppText.body(14, color: AppColors.muted)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(AppStrings.cancel,
+                style: AppText.body(14, color: AppColors.fg)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(AppStrings.removeConfirm,
+                style: AppText.body(14,
+                    weight: FontWeight.w600, color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) {
+      // Look the player up again – the list may have changed meanwhile.
+      final i = provider.players.indexOf(player);
+      if (i >= 0) provider.removePlayer(i, inGame: true);
+    }
+  }
+
+  String? _blockReason(GameProvider p, int index) {
+    if (p.canRemovePlayer(index, inGame: true)) return null;
+    return index == p.currentPlayerIndex && p.phase == GamePhase.showingFailure
+        ? AppStrings.cantRemoveDuringFailure
+        : AppStrings.cantRemoveLast;
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<GameProvider>();
     final players = provider.players;
+    final maxListHeight = MediaQuery.sizeOf(context).height * 0.45;
 
     return AlertDialog(
       backgroundColor: AppColors.raised,
-      title: Text(AppStrings.managePlayersTitle, style: AppText.display(20)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(AppStrings.managePlayersTitle, style: AppText.display(20)),
+          const SizedBox(height: 4),
+          Text(AppStrings.managePlayersHint,
+              style: AppText.body(12, color: AppColors.muted)),
+        ],
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Flexible(
-              child: ListView.builder(
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxListHeight),
+              child: ReorderableListView.builder(
                 shrinkWrap: true,
+                buildDefaultDragHandles: false,
                 itemCount: players.length,
+                onReorder: provider.reorderPlayers,
+                proxyDecorator: (child, _, __) => Material(
+                    color: Colors.transparent, elevation: 6, child: child),
                 itemBuilder: (context, index) {
                   final player = players[index];
-                  return Row(
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: AppColors.player(player.colorIndex),
-                          shape: BoxShape.circle,
+                  final isTurn = index == provider.currentPlayerIndex;
+                  final block = _blockReason(provider, index);
+                  return Container(
+                    key: ObjectKey(player),
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.only(left: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.table,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: isTurn ? AppColors.fg : Colors.transparent),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: AppColors.player(player.colorIndex),
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(player.name,
-                            style: AppText.body(15,
-                                color: player.active
-                                    ? AppColors.fg
-                                    : AppColors.muted)),
-                      ),
-                      Switch(
-                        value: player.active,
-                        onChanged: (_) => provider.togglePlayerActive(index),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(player.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppText.body(15,
+                                      weight: FontWeight.w500,
+                                      color: player.active
+                                          ? AppColors.fg
+                                          : AppColors.muted)),
+                              Text(
+                                isTurn
+                                    ? AppStrings.isTurn
+                                    : player.active
+                                        ? AppStrings.sipsShort(
+                                            player.totalPenalty)
+                                        : AppStrings.sitsOut,
+                                style: AppText.mono(10,
+                                    color: isTurn
+                                        ? AppColors.amber
+                                        : AppColors.muted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Tooltip(
+                          message: block ?? AppStrings.sitOutToggle,
+                          child: Switch(
+                            value: player.active,
+                            onChanged: player.active && block != null
+                                ? null
+                                : (_) => provider.togglePlayerActive(index),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: block ?? AppStrings.removePlayer,
+                          onPressed:
+                              block == null ? () => _remove(index) : null,
+                          icon: const Icon(Icons.person_remove_outlined,
+                              size: 20),
+                          color: AppColors.muted,
+                          disabledColor: AppColors.line,
+                        ),
+                        ReorderableDragStartListener(
+                          index: index,
+                          child: const Padding(
+                            padding: EdgeInsets.fromLTRB(2, 12, 10, 12),
+                            child: Icon(Icons.drag_indicator,
+                                color: AppColors.muted),
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(

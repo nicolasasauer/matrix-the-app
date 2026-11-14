@@ -138,7 +138,9 @@ class GameHud extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
+          const ShuffleButton(),
+          const SizedBox(width: 6),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
@@ -169,6 +171,77 @@ class GameHud extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shuffles the remaining deck with one tap. Gives feedback in place (spin
+/// + short label) so nothing covers the action sheet.
+class ShuffleButton extends StatefulWidget {
+  const ShuffleButton({super.key});
+
+  @override
+  State<ShuffleButton> createState() => _ShuffleButtonState();
+}
+
+class _ShuffleButtonState extends State<ShuffleButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spin = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 500));
+  bool _justShuffled = false;
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  void _shuffle() {
+    context.read<GameProvider>().shuffleDeck();
+    _spin.forward(from: 0);
+    setState(() => _justShuffled = true);
+    Future.delayed(const Duration(milliseconds: 1400), () {
+      if (mounted) setState(() => _justShuffled = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.watch<GameProvider>();
+    final enabled = (p.engine?.deck.remaining ?? 0) > 1 &&
+        p.phase != GamePhase.gameOver &&
+        p.phase != GamePhase.matrixFull;
+    return Tooltip(
+      message: AppStrings.shuffleDeck,
+      child: Material(
+        color: AppColors.raised,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: enabled ? _shuffle : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RotationTransition(
+                  turns: CurvedAnimation(parent: _spin, curve: Curves.easeOut),
+                  child: Icon(Icons.shuffle,
+                      size: 18,
+                      color: enabled ? AppColors.fg : AppColors.muted),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _justShuffled ? AppStrings.shuffled : AppStrings.shuffle,
+                  style: AppText.body(9.5,
+                      weight: FontWeight.w600,
+                      color: _justShuffled ? AppColors.ok : AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

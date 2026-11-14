@@ -14,7 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Builds the app around a game with a fixed deck. Cards are drawn from the
 /// end of [order], i.e. `order.last` becomes the centre card.
 Future<GameProvider> pumpGame(WidgetTester tester, List<Card> order,
-    {bool streak = true, bool odds = true}) async {
+    {bool streak = true, bool odds = false}) async {
   SharedPreferences.setMockInitialValues({
     'animations_enabled': false,
     'streak_multiplier_enabled': streak,
@@ -86,6 +86,21 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
+      testWidgets('player dialog fits and shows controls', (tester) async {
+        tester.view.physicalSize = size * 2;
+        tester.view.devicePixelRatio = 2;
+        addTearDown(tester.view.reset);
+
+        await pumpGame(tester, [filler, hK, c7]);
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Spieler verwalten'));
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.drag_indicator), findsNWidgets(4));
+        expect(find.byIcon(Icons.person_remove_outlined), findsNWidgets(4));
+        expect(tester.takeException(), isNull);
+      });
+
       testWidgets('decision sheet fits', (tester) async {
         tester.view.physicalSize = size * 2;
         tester.view.devicePixelRatio = 2;
@@ -134,4 +149,21 @@ void main() {
       });
     });
   }
+
+  testWidgets('odds are hidden unless enabled in the settings', (tester) async {
+    tester.view.physicalSize = const Size(360, 640) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final game = await pumpGame(tester, [filler, hK, c7]);
+    game.selectPosition(const Position(2, 3));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('%'), findsNothing);
+  });
+
+  test('odds setting defaults to off', () async {
+    SharedPreferences.setMockInitialValues({});
+    final s = SettingsProvider(SettingsService());
+    await s.load();
+    expect(s.showProbabilities, isFalse);
+  });
 }
