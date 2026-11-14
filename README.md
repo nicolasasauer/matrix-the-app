@@ -19,7 +19,7 @@ Eine Startkarte (Nucleus) wird in der Mitte des 5×5-Rasters platziert. Spieler 
 
 **Falsch geraten** → gesamte Zeile und Spalte der Fehlposition werden geleert. Die Strafpunkte berechnen sich aus `geräumte Karten × geerbter Multiplikator`.
 
-Das Spiel endet, wenn das Deck erschöpft ist. Gewonnen hat, wer die **wenigsten Strafpunkte** hat.
+Abgeräumte Karten kommen zurück in den Stapel, der danach automatisch einmal gemischt wird. Das Spiel endet, wenn die **5×5-Matrix voll** ist oder es über das Menü **manuell beendet** wird. Gewonnen hat, wer die **wenigsten Strafpunkte** hat.
 
 ---
 
@@ -32,7 +32,8 @@ Das Spiel endet, wenn das Deck erschöpft ist. Gewonnen hat, wer die **wenigsten
 - 📈 Optionale Trefferchancen, berechnet aus den noch nicht gezogenen Karten
 - 💀 Fehler als Vollbild – der Bestätigen-Knopf ist immer ohne Scrollen sichtbar
 - 👥 Spieler mit eigener Farbe – auch im laufenden Spiel hinzufügen, entfernen, umsortieren oder aussetzen lassen
-- 🔀 Stapel mit fester Reihenfolge, der sich jederzeit per Klick mischen lässt
+- 🔀 Stapel mit fester Reihenfolge, jederzeit per Klick mischbar; nach einem Fehler wandern die abgeräumten Karten zurück und der Stapel wird mit Animation gemischt
+- 🏁 Spielende bei voller Matrix oder per „Spiel beenden“ – wird im Verlauf gespeichert
 - 📊 Auswertung mit Rangliste, Highlights, Fehler-Verlauf und Revanche
 - 📖 Regel-Seite für neue Mitspieler
 

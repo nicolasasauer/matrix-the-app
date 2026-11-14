@@ -127,4 +127,55 @@ void main() {
       expect(g.drawnCard, top);
     });
   });
+
+  group('Mistakes return cards', () {
+    test('cleared cards go back into the deck, which is shuffled', () {
+      final g = newGame(['A', 'B']);
+      final before = g.engine!.deck.remaining; // 51
+      g.selectPosition(const Position(2, 3));
+      // Force a wrong guess: pick the guess that loses for the top card.
+      final top = g.engine!.deck.cards.last;
+      final nucleus = g.engine!.getCard(const Position(2, 2))!;
+      final guess = top.rank.value > nucleus.rank.value
+          ? const Guess(GuessType.lower)
+          : const Guess(GuessType.higher);
+      g.makeGuess(guess);
+      expect(g.phase, GamePhase.showingFailure);
+      g.confirmFailure();
+
+      // Row 2 held the nucleus and the drawn card → both back, new nucleus
+      // drawn: 51 - 1 (drawn) + 2 (returned) - 1 (new nucleus) = 51.
+      expect(g.engine!.deck.remaining, before);
+      expect(g.lastReturnedCount, 2);
+      expect(g.returnCount, 1);
+      expect(g.shuffleCount, 1);
+
+      final onTable = [
+        for (final row in g.engine!.grid)
+          for (final c in row)
+            if (c != null) c
+      ];
+      final all = {...g.engine!.deck.cards, ...onTable};
+      expect(all.length, 52, reason: 'no card lost or duplicated');
+      expect(g.engine!.deck.cards.length + onTable.length, 52);
+    });
+
+    test('game does not end because of the deck', () {
+      final g = newGame(['A']);
+      expect(g.engine!.isGameFinished, isFalse);
+    });
+
+    test('game can be ended by hand, but not while sips are shown', () {
+      final g = newGame(['A'], deck: [s5, hK, c7]);
+      g.selectPosition(const Position(2, 3));
+      g.makeGuess(const Guess(GuessType.lower)); // wrong
+      expect(g.canEndGame, isFalse);
+      g.endGame();
+      expect(g.phase, GamePhase.showingFailure);
+      g.confirmFailure();
+      expect(g.canEndGame, isTrue);
+      g.endGame();
+      expect(g.phase, GamePhase.gameOver);
+    });
+  });
 }

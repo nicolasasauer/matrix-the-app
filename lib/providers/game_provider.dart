@@ -243,9 +243,30 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-  /// Number of times the deck was shuffled during this round.
+  /// Number of times the deck was shuffled during this round (by hand or
+  /// automatically after a mistake). Widgets watch it to play animations.
   int get shuffleCount => _shuffleCount;
   int _shuffleCount = 0;
+
+  /// How many cards the last mistake put back into the deck, and a counter
+  /// that increases with every such return (for the reshuffle animation).
+  int get lastReturnedCount => _lastReturnedCount;
+  int get returnCount => _returnCount;
+  int _lastReturnedCount = 0;
+  int _returnCount = 0;
+
+  /// Whether the round can be ended by hand right now.
+  bool get canEndGame => _gameRunning && _phase != GamePhase.showingFailure;
+
+  /// Ends the round by hand and saves it to the history.
+  void endGame() {
+    if (!canEndGame) return;
+    _selectedPosition = null;
+    _drawnCard = null;
+    _phase = GamePhase.gameOver;
+    _saveGame(matrixFull: false);
+    notifyListeners();
+  }
 
   /// Shuffles the cards still in the deck. The deck keeps a fixed order at
   /// all times; it only changes when this is called (or a new game starts).
@@ -273,6 +294,8 @@ class GameProvider extends ChangeNotifier {
     _engine = engine ?? GameEngine.newGame();
     _penaltyTimeline.clear();
     _shuffleCount = 0;
+    _lastReturnedCount = 0;
+    _returnCount = 0;
     _lastGuess = null;
     _lastNeighbors = const [];
     _pendingClearCount = 0;
@@ -381,6 +404,9 @@ class GameProvider extends ChangeNotifier {
 
     final pos = _selectedPosition!;
     _clearedCards = _engine!.applyFailure(pos);
+    _lastReturnedCount = _clearedCards;
+    _returnCount++;
+    _shuffleCount++;
 
     final penalty = _clearedCards * _inheritedMultiplier;
     final p = currentPlayer;

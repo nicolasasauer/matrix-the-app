@@ -13,9 +13,18 @@ class AppStrings {
 
   static const String endGameTitle = 'Spiel beenden?';
   static const String endGameContent =
-      'Möchtest du wirklich zum Startmenü? Das laufende Spiel wird abgebrochen.';
+      'Die Runde wird ausgewertet und im Verlauf gespeichert.';
+  static const String endGameMenu = 'Spiel beenden';
+  static const String endAndScore = 'Beenden & auswerten';
+  static const String discardGame = 'Verwerfen';
+  static const String leaveTitle = 'Spiel verlassen?';
+  static const String leaveContent =
+      '„Beenden & auswerten“ speichert die Runde im Verlauf. '
+      '„Verwerfen“ bricht sie ohne Wertung ab.';
+  static const String leaveContentNoEnd =
+      'Bestätige erst die Schlücke, um die Runde auszuwerten. '
+      '„Verwerfen“ bricht sie ohne Wertung ab.';
   static const String cancel = 'Abbrechen';
-  static const String yesEnd = 'Ja, beenden';
 
   static const String managePlayersTitle = 'Spieler verwalten';
   static const String settingsTitle = 'Einstellungen';
@@ -55,6 +64,8 @@ class AppStrings {
   static const String shuffle = 'Mischen';
   static const String shuffled = 'Gemischt';
   static const String shuffleDeck = 'Restlichen Stapel mischen';
+  static String cardsReturned(int n) =>
+      '$n ${n == 1 ? 'Karte' : 'Karten'} zurück im Stapel · gemischt';
   static String streakLine(int passes) =>
       '$passes ${passes == 1 ? 'Zug' : 'Züge'} fehlerfrei';
   static String passOnLine(int m) => 'Weitergabe: ${m}x';
@@ -101,8 +112,8 @@ class AppStrings {
       '$cards ${cards == 1 ? 'Karte' : 'Karten'} × Pegel ${m}x';
   static const String confirmClear = 'Abräumen';
   static String afterFailure(String name, bool resetsLevel) => resetsLevel
-      ? 'Pegel fällt auf 1x · $name spielt weiter'
-      : '$name spielt weiter';
+      ? 'Karten zurück in den Stapel · Pegel 1x · $name spielt weiter'
+      : 'Karten zurück in den Stapel · $name spielt weiter';
 
   // ── Decision ─────────────────────────────────────────────────────────────
 
@@ -117,7 +128,7 @@ class AppStrings {
 
   // ── End of game ──────────────────────────────────────────────────────────
 
-  static const String gameOver = 'Stapel leer – Spiel vorbei';
+  static const String gameOver = 'Spiel beendet';
   static const String showResult = 'Auswertung ansehen';
   static const String matrixFull = 'Matrix voll!';
   static const String matrixFullSubtitle =

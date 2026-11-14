@@ -64,6 +64,11 @@ class Deck {
     _cards.addAll(cards);
   }
 
+  /// Puts [cards] back into the deck (at the bottom, in the given order).
+  void returnCards(Iterable<Card> cards) {
+    _cards.insertAll(0, cards);
+  }
+
   /// Cards that have not been drawn yet (i.e. never seen by the players).
   List<Card> get cards => List.unmodifiable(_cards);
 

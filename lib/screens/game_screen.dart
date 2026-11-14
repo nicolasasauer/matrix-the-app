@@ -9,6 +9,7 @@ import '../widgets/card_face.dart';
 import '../widgets/game_board.dart';
 import '../widgets/guess_controls.dart';
 import '../widgets/player_info_bar.dart';
+import '../widgets/reshuffle_animation.dart';
 import '../widgets/settings_dialog.dart';
 import '../widgets/sheet.dart';
 
@@ -18,8 +19,55 @@ import '../widgets/sheet.dart';
 class GameScreen extends StatelessWidget {
   const GameScreen({super.key});
 
-  Future<void> _confirmLeave(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+  /// Home / back: end with scoring, discard, or stay.
+  static Future<void> confirmLeave(BuildContext context) async {
+    final provider = context.read<GameProvider>();
+    final canEnd = provider.canEndGame;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.raised,
+        title: Text(AppStrings.leaveTitle, style: AppText.display(20)),
+        content: Text(
+            canEnd ? AppStrings.leaveContent : AppStrings.leaveContentNoEnd,
+            style: AppText.body(14, color: AppColors.muted)),
+        actionsOverflowButtonSpacing: 4,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(AppStrings.cancel,
+                style: AppText.body(14, color: AppColors.fg)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop('discard'),
+            child: Text(AppStrings.discardGame,
+                style: AppText.body(14,
+                    weight: FontWeight.w600, color: AppColors.danger)),
+          ),
+          if (canEnd)
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop('end'),
+              child: Text(AppStrings.endAndScore,
+                  style: AppText.body(14,
+                      weight: FontWeight.w600, color: AppColors.amber)),
+            ),
+        ],
+      ),
+    );
+    if (!context.mounted) return;
+    if (choice == 'discard') {
+      Navigator.pushReplacementNamed(context, '/');
+    } else if (choice == 'end') {
+      provider.endGame();
+      Navigator.pushReplacementNamed(context, '/scoreboard');
+    }
+  }
+
+  /// Menu: end the round now and show the result.
+  static Future<void> confirmEnd(BuildContext context) async {
+    final provider = context.read<GameProvider>();
+    if (!provider.canEndGame) return;
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.raised,
@@ -34,15 +82,16 @@ class GameScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(AppStrings.yesEnd,
+            child: Text(AppStrings.endAndScore,
                 style: AppText.body(14,
-                    weight: FontWeight.w600, color: AppColors.danger)),
+                    weight: FontWeight.w600, color: AppColors.amber)),
           ),
         ],
       ),
     );
-    if (confirmed == true && context.mounted) {
-      Navigator.pushReplacementNamed(context, '/');
+    if (ok == true && context.mounted) {
+      provider.endGame();
+      Navigator.pushReplacementNamed(context, '/scoreboard');
     }
   }
 
@@ -66,7 +115,7 @@ class GameScreen extends StatelessWidget {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _confirmLeave(context);
+        if (!didPop) confirmLeave(context);
       },
       child: Scaffold(
         backgroundColor: AppColors.table,
@@ -76,7 +125,7 @@ class GameScreen extends StatelessWidget {
               children: [
                 SafeArea(
                   bottom: false,
-                  child: _TopBar(onHome: () => _confirmLeave(context)),
+                  child: _TopBar(onHome: () => confirmLeave(context)),
                 ),
                 const GameHud(),
                 Expanded(
@@ -99,6 +148,7 @@ class GameScreen extends StatelessWidget {
                 ),
               ],
             ),
+            const Positioned.fill(child: ReshuffleAnimation()),
             if (phase == GamePhase.showingFailure)
               Positioned.fill(
                 child:
@@ -154,7 +204,7 @@ class _FitSheet extends StatelessWidget {
 
 // ── Top bar ─────────────────────────────────────────────────────────────────
 
-enum _MenuAction { players, scoreboard, rules, settings }
+enum _MenuAction { players, scoreboard, rules, settings, endGame }
 
 class _TopBar extends StatelessWidget {
   final VoidCallback onHome;
@@ -188,6 +238,8 @@ class _TopBar extends StatelessWidget {
                 case _MenuAction.settings:
                   showDialog(
                       context: context, builder: (_) => const SettingsDialog());
+                case _MenuAction.endGame:
+                  GameScreen.confirmEnd(context);
               }
             },
             itemBuilder: (_) => [
@@ -198,6 +250,10 @@ class _TopBar extends StatelessWidget {
               _item(_MenuAction.rules, Icons.menu_book_outlined,
                   AppStrings.rulesTitle),
               _item(_MenuAction.settings, Icons.tune, AppStrings.settingsTitle),
+              const PopupMenuDivider(),
+              _item(_MenuAction.endGame, Icons.flag_outlined,
+                  AppStrings.endGameMenu,
+                  enabled: context.read<GameProvider>().canEndGame),
             ],
           ),
         ],
@@ -205,9 +261,11 @@ class _TopBar extends StatelessWidget {
     );
   }
 
-  PopupMenuItem<_MenuAction> _item(_MenuAction a, IconData icon, String text) =>
+  PopupMenuItem<_MenuAction> _item(_MenuAction a, IconData icon, String text,
+          {bool enabled = true}) =>
       PopupMenuItem(
         value: a,
+        enabled: enabled,
         child: Row(children: [
           Icon(icon, size: 20, color: AppColors.muted),
           const SizedBox(width: 12),

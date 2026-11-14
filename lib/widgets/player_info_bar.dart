@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/app_strings.dart';
 import '../providers/game_provider.dart';
+import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 
 /// Horizontal strip with every active player: the current one is highlighted,
@@ -190,25 +193,41 @@ class _ShuffleButtonState extends State<ShuffleButton>
   late final AnimationController _spin = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 500));
   bool _justShuffled = false;
+  int? _seenShuffles;
+  Timer? _labelTimer;
 
   @override
   void dispose() {
+    _labelTimer?.cancel();
     _spin.dispose();
     super.dispose();
   }
 
-  void _shuffle() {
-    context.read<GameProvider>().shuffleDeck();
-    _spin.forward(from: 0);
+  /// Plays the feedback whenever the deck was shuffled – by this button or
+  /// automatically after a mistake.
+  void _onShuffled() {
+    if (context.read<SettingsProvider>().animationsEnabled) {
+      _spin.forward(from: 0);
+    }
     setState(() => _justShuffled = true);
-    Future.delayed(const Duration(milliseconds: 1400), () {
+    _labelTimer?.cancel();
+    _labelTimer = Timer(const Duration(milliseconds: 1400), () {
       if (mounted) setState(() => _justShuffled = false);
     });
   }
 
+  void _shuffle() => context.read<GameProvider>().shuffleDeck();
+
   @override
   Widget build(BuildContext context) {
     final p = context.watch<GameProvider>();
+    final shuffles = p.shuffleCount;
+    if (_seenShuffles != null && shuffles > _seenShuffles!) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _onShuffled();
+      });
+    }
+    _seenShuffles = shuffles;
     final enabled = (p.engine?.deck.remaining ?? 0) > 1 &&
         p.phase != GamePhase.gameOver &&
         p.phase != GamePhase.matrixFull;

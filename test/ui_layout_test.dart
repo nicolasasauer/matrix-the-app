@@ -14,9 +14,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Builds the app around a game with a fixed deck. Cards are drawn from the
 /// end of [order], i.e. `order.last` becomes the centre card.
 Future<GameProvider> pumpGame(WidgetTester tester, List<Card> order,
-    {bool streak = true, bool odds = false}) async {
+    {bool streak = true, bool odds = false, bool animations = false}) async {
   SharedPreferences.setMockInitialValues({
-    'animations_enabled': false,
+    'animations_enabled': animations,
     'streak_multiplier_enabled': streak,
     'show_probabilities': odds,
   });

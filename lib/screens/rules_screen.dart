@@ -33,7 +33,9 @@ class RulesScreen extends StatelessWidget {
           _h('Falsch getippt'),
           _p('Die ganze Zeile und Spalte des Felds wird abgeräumt. Du trinkst '
               'so viele Schlücke, wie Karten abgeräumt werden, mal deinem '
-              'Pegel. Danach fällt der Pegel auf 1x.'),
+              'Pegel. Danach fällt der Pegel auf 1x. Die abgeräumten Karten '
+              'kommen zurück in den Stapel, und der Stapel wird einmal '
+              'gemischt.'),
           _h('Streak-Multiplikator (Hausregel)'),
           _p('Ist er aktiv, steigt der Pegel mit jeder fehlerfreien Weitergabe '
               'um 1: 2x, 3x, 4x … bis jemand einen Fehler macht.'),
@@ -43,9 +45,10 @@ class RulesScreen extends StatelessWidget {
               'sich Spieler auch mitten im Spiel hinzufügen, entfernen, '
               'umsortieren oder aussetzen lassen.'),
           _h('Spielende'),
-          _p('Das Spiel endet, wenn der Stapel leer ist. Wer die wenigsten '
-              'Schlücke hat, gewinnt. Wer alle 25 Felder füllt, hat die Matrix '
-              'geschafft.'),
+          _p('Das Spiel endet, wenn alle 25 Felder belegt sind – dann habt '
+              'ihr die Matrix geschafft – oder wenn ihr es über das Menü (⋮) '
+              '„Spiel beenden“ auswertet. Wer die wenigsten Schlücke hat, '
+              'gewinnt.'),
         ],
       ),
     );
