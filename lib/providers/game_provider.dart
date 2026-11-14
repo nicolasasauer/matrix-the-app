@@ -14,7 +14,10 @@ class Player {
   bool active;
   int correctGuesses;
 
-  Player(this.name)
+  /// Stable index into the player colour palette.
+  final int colorIndex;
+
+  Player(this.name, {this.colorIndex = 0})
       : penaltyLog = [],
         maxReceivedMultiplier = 1,
         maxCreatedMultiplier = 0,
@@ -22,6 +25,17 @@ class Player {
         correctGuesses = 0;
 
   int get totalPenalty => penaltyLog.fold(0, (sum, p) => sum + p);
+  int get wrongGuesses => penaltyLog.length;
+  int get maxSinglePenalty =>
+      penaltyLog.isEmpty ? 0 : penaltyLog.reduce((a, b) => a > b ? a : b);
+}
+
+/// One mistake in the order it happened, for the result timeline.
+class PenaltyEvent {
+  final String playerName;
+  final int colorIndex;
+  final int penalty;
+  const PenaltyEvent(this.playerName, this.colorIndex, this.penalty);
 }
 
 enum GamePhase {
@@ -56,6 +70,12 @@ class GameProvider extends ChangeNotifier {
   Position? _selectedPosition;
   Card? _drawnCard;
   int _clearedCards = 0;
+  int _nextColorIndex = 0;
+
+  Guess? _lastGuess;
+  List<Card> _lastNeighbors = const [];
+  int _pendingClearCount = 0;
+  final List<PenaltyEvent> _penaltyTimeline = [];
 
   StorageService get storageService => _storage;
 
@@ -84,6 +104,44 @@ class GameProvider extends ChangeNotifier {
   Card? get drawnCard => _drawnCard;
   int get clearedCards => _clearedCards;
 
+  /// The guess and the neighbours it was made against (for the failure screen).
+  Guess? get lastGuess => _lastGuess;
+  List<Card> get lastNeighbors => _lastNeighbors;
+
+  /// Number of cards that [confirmFailure] will clear (incl. the drawn card).
+  int get pendingClearCount => _pendingClearCount;
+
+  List<PenaltyEvent> get penaltyTimeline => List.unmodifiable(_penaltyTimeline);
+
+  /// The active player who comes after the current one.
+  Player? get nextPlayer =>
+      _players.isEmpty ? null : _players[_nextActiveIndex()];
+
+  /// Cards a mistake at [pos] would clear: everything in its row and column
+  /// plus the card that would be placed there.
+  int previewClearCount(Position pos) {
+    if (_engine == null) return 0;
+    final existing = _engine!.countCardsToBeCleared(pos);
+    return _engine!.getCard(pos) == null ? existing + 1 : existing;
+  }
+
+  /// Sips a mistake at [pos] would cost right now.
+  int previewPenalty(Position pos) =>
+      previewClearCount(pos) * _inheritedMultiplier;
+
+  /// Chance that [guess] at [pos] is right, based on the cards not seen yet.
+  /// Returns null when it cannot be computed.
+  double? guessProbability(Position pos, Guess guess) {
+    final engine = _engine;
+    if (engine == null) return null;
+    final unseen = engine.deck.cards;
+    if (unseen.isEmpty) return null;
+    final neighbors = engine.getOrthogonalNeighbors(pos);
+    final hits =
+        unseen.where((c) => engine.evaluateGuess(c, neighbors, guess)).length;
+    return hits / unseen.length;
+  }
+
   /// The drink penalty that will be assigned when [confirmFailure] is called.
   /// Only meaningful during the [GamePhase.showingFailure] phase.
   int get pendingPenalty {
@@ -97,19 +155,28 @@ class GameProvider extends ChangeNotifier {
   }
 
   bool get canInteract =>
-      _phase == GamePhase.selectingPosition ||
-      _phase == GamePhase.makingGuess;
+      _phase == GamePhase.selectingPosition || _phase == GamePhase.makingGuess;
 
   int get activePlayerCount => _players.where((p) => p.active).length;
 
   void addPlayer(String name) {
     if (name.trim().isEmpty) return;
-    _players.add(Player(name.trim()));
+    _players.add(Player(name.trim(), colorIndex: _nextColorIndex++));
+    notifyListeners();
+  }
+
+  void reorderPlayers(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= _players.length) return;
+    if (newIndex > oldIndex) newIndex -= 1;
+    final current = currentPlayer;
+    final p = _players.removeAt(oldIndex);
+    _players.insert(newIndex.clamp(0, _players.length), p);
+    if (current != null) _currentPlayerIndex = _players.indexOf(current);
     notifyListeners();
   }
 
   void removePlayer(int index) {
-    if (_players.length <= 1) return;
+    if (index < 0 || index >= _players.length) return;
     _players.removeAt(index);
     if (_currentPlayerIndex >= _players.length) {
       _currentPlayerIndex = 0;
@@ -126,13 +193,21 @@ class GameProvider extends ChangeNotifier {
   }
 
   void setPlayers(List<String> names) {
-    _players = names.map((n) => Player(n)).toList();
+    _nextColorIndex = 0;
+    _players =
+        names.map((n) => Player(n, colorIndex: _nextColorIndex++)).toList();
     notifyListeners();
   }
 
-  void startGame() {
+  /// Starts a new round with the current players. [engine] can be injected
+  /// (e.g. with a fixed deck in tests).
+  void startGame({GameEngine? engine}) {
     if (_players.isEmpty) return;
-    _engine = GameEngine.newGame();
+    _engine = engine ?? GameEngine.newGame();
+    _penaltyTimeline.clear();
+    _lastGuess = null;
+    _lastNeighbors = const [];
+    _pendingClearCount = 0;
     _currentPlayerIndex = 0;
     _phase = GamePhase.selectingPosition;
     _turnCalls = 0;
@@ -152,9 +227,15 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Selects [pos] for the next guess. Tapping another valid cell while a
+  /// guess is pending switches the selection; tapping the same cell cancels.
   void selectPosition(Position pos) {
     if (!canInteract) return;
     if (_engine == null) return;
+    if (_phase == GamePhase.makingGuess && _selectedPosition == pos) {
+      cancelSelection();
+      return;
+    }
     if (!_engine!.isValidPosition(pos)) return;
     _selectedPosition = pos;
     _phase = GamePhase.makingGuess;
@@ -173,6 +254,8 @@ class GameProvider extends ChangeNotifier {
     if (_engine == null || _selectedPosition == null) return;
 
     final pos = _selectedPosition!;
+    _lastGuess = guess;
+    _lastNeighbors = _engine!.getOrthogonalNeighbors(pos);
     final result = _engine!.placeCard(pos, guess);
 
     _drawnCard = _engine!.getCard(pos);
@@ -186,6 +269,7 @@ class GameProvider extends ChangeNotifier {
 
     if (result == PlaceResult.wrong) {
       HapticFeedback.mediumImpact();
+      _pendingClearCount = _engine!.countCardsToBeCleared(pos);
       _phase = GamePhase.showingFailure;
       notifyListeners();
       return;
@@ -231,7 +315,12 @@ class GameProvider extends ChangeNotifier {
     _clearedCards = _engine!.applyFailure(pos);
 
     final penalty = _clearedCards * _inheritedMultiplier;
-    currentPlayer?.penaltyLog.add(penalty);
+    final p = currentPlayer;
+    if (p != null) {
+      p.penaltyLog.add(penalty);
+      _penaltyTimeline.add(PenaltyEvent(p.name, p.colorIndex, penalty));
+    }
+    _pendingClearCount = 0;
 
     _globalMultiplier = 1;
     _inheritedMultiplier = 1;
@@ -259,18 +348,7 @@ class GameProvider extends ChangeNotifier {
   void endTurn() {
     if (_phase != GamePhase.awaitingDecision) return;
 
-    // Find next active player
-    int next = (_currentPlayerIndex + 1) % _players.length;
-    int attempts = 0;
-    while (!_players[next].active && attempts < _players.length) {
-      next = (next + 1) % _players.length;
-      attempts++;
-    }
-    // Fall back to next index if no active player found (safety guard)
-    if (!_players[next].active) {
-      next = (_currentPlayerIndex + 1) % _players.length;
-    }
-    _currentPlayerIndex = next;
+    _currentPlayerIndex = _nextActiveIndex();
 
     final nextInherited = passOnMultiplier;
     if (streakRuleEnabled) _cleanPasses++;
@@ -295,6 +373,21 @@ class GameProvider extends ChangeNotifier {
       _autoSave();
     }
     notifyListeners();
+  }
+
+  int _nextActiveIndex() {
+    if (_players.isEmpty) return 0;
+    int next = (_currentPlayerIndex + 1) % _players.length;
+    int attempts = 0;
+    while (!_players[next].active && attempts < _players.length) {
+      next = (next + 1) % _players.length;
+      attempts++;
+    }
+    // Fall back to next index if no active player found (safety guard)
+    if (!_players[next].active) {
+      next = (_currentPlayerIndex + 1) % _players.length;
+    }
+    return next;
   }
 
   List<Card> getNeighbors(Position pos) {

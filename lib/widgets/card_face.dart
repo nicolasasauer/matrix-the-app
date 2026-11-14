@@ -1,158 +1,124 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-import '../domain/models.dart' hide Card;
+
 import '../domain/models.dart' as domain;
+import '../theme/app_theme.dart';
 
-/// The font family that guarantees ♥ ♠ ♦ ♣ are rendered correctly on every
-/// device, including old Android versions that lack those glyphs in the system
-/// font.  The .ttf is bundled in assets/fonts/ and registered in pubspec.yaml.
-const _kSymbolFont = 'NotoSansSymbols2';
+/// Ink colour of a suit on a light card face.
+Color suitInk(domain.Suit suit) =>
+    (suit == domain.Suit.heart || suit == domain.Suit.diamond)
+        ? AppColors.suitRed
+        : AppColors.cardInk;
 
-/// Returns the color for a [Suit] used throughout the card-rendering widgets.
-Color suitColor(domain.Suit suit, {bool failure = false}) {
-  if (failure) return Colors.red.shade200;
-  return (suit == domain.Suit.heart || suit == domain.Suit.diamond)
-      ? Colors.red.shade300
-      : Colors.white;
-}
+String _rank(domain.Card c) => c.rank.symbol;
 
-/// A compact inline representation of a card, e.g. used in the neighbor list:
-/// "A♠  K♥".  The suit glyph is rendered with [_kSymbolFont].
-class CardInline extends StatelessWidget {
-  final domain.Card card;
-  final double fontSize;
-  final bool failure;
-
-  const CardInline({
-    super.key,
-    required this.card,
-    this.fontSize = 18,
-    this.failure = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = suitColor(card.suit, failure: failure);
-    return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: card.rank.symbol,
-            style: TextStyle(
-              color: color,
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          TextSpan(
-            text: card.suit.symbol,
-            style: TextStyle(
-              color: color,
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              fontFamily: _kSymbolFont,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Full card face used inside the 5×5 grid cells.  Shows the rank in the
-/// top-left corner and a large suit symbol centred in the cell.
+/// Card face used inside the 5×5 grid. Scales with the cell size.
 class CardFace extends StatelessWidget {
   final domain.Card card;
-  final bool failure;
 
-  const CardFace({super.key, required this.card, this.failure = false});
+  const CardFace({super.key, required this.card});
 
   @override
   Widget build(BuildContext context) {
-    final color = suitColor(card.suit, failure: failure);
-    return Padding(
-      padding: const EdgeInsets.all(3),
-      child: Stack(
-        children: [
-          // Top-left rank label
-          Align(
-            alignment: Alignment.topLeft,
-            child: Text(
-              card.rank.symbol,
-              style: TextStyle(
-                color: color,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                height: 1.0,
-              ),
-            ),
+    final color = suitInk(card.suit);
+    return LayoutBuilder(builder: (context, c) {
+      final h = c.maxHeight.isFinite ? c.maxHeight : 60.0;
+      return Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_rank(card),
+                  style: AppText.display(h * 0.34, weight: 700, color: color)),
+              Text(card.suit.symbol,
+                  style: TextStyle(
+                    fontFamily: AppFonts.symbols,
+                    fontSize: h * 0.30,
+                    color: color,
+                    height: 1.0,
+                  )),
+            ],
           ),
-          // Bottom-right rank label (upside-down mirror – classic card look)
-          Align(
-            alignment: Alignment.bottomRight,
-            child: Transform.rotate(
-              angle: math.pi,
-              child: Text(
-                card.rank.symbol,
-                style: TextStyle(
-                  color: color.withValues(alpha: 0.7),
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  height: 1.0,
-                ),
-              ),
-            ),
+        ),
+      );
+    });
+  }
+}
+
+/// Small card chip, e.g. for the neighbour cards in the guess sheet.
+class MiniCard extends StatelessWidget {
+  final domain.Card card;
+  final double width;
+
+  const MiniCard({super.key, required this.card, this.width = 26});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = suitInk(card.suit);
+    return Container(
+      width: width,
+      height: width * 1.36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(width * 0.18),
+      ),
+      child: FittedBox(
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_rank(card),
+                  style:
+                      AppText.display(width * 0.46, weight: 700, color: color)),
+              Text(card.suit.symbol,
+                  style: TextStyle(
+                    fontFamily: AppFonts.symbols,
+                    fontSize: width * 0.40,
+                    color: color,
+                    height: 1.0,
+                  )),
+            ],
           ),
-          // Centre suit symbol
-          Center(
-            child: Text(
-              card.suit.symbol,
-              style: TextStyle(
-                color: color,
-                fontSize: 18,
-                fontFamily: _kSymbolFont,
-                height: 1.0,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Large card display used in the "current card" panel in the game screen.
-class CardLarge extends StatelessWidget {
+/// Large, slightly tilted card for the failure screen.
+class BigCard extends StatelessWidget {
   final domain.Card card;
+  final double width;
 
-  const CardLarge({super.key, required this.card});
+  const BigCard({super.key, required this.card, this.width = 72});
 
   @override
   Widget build(BuildContext context) {
-    final color = card.isRed ? Colors.red.shade200 : Colors.white;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          card.rank.symbol,
-          style: TextStyle(
-            color: color,
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            height: 1.0,
-          ),
+    return Transform.rotate(
+      angle: -0.10,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(width * 0.14),
+          boxShadow: const [
+            BoxShadow(
+                color: Colors.black54, blurRadius: 24, offset: Offset(0, 10)),
+          ],
         ),
-        Text(
-          card.suit.symbol,
-          style: TextStyle(
-            color: color,
-            fontSize: 28,
-            fontFamily: _kSymbolFont,
-            height: 1.1,
-          ),
-        ),
-      ],
+        child: MiniCard(card: card, width: width),
+      ),
     );
   }
+}
+
+/// Human-readable name of a card, e.g. "König Herz".
+String cardName(domain.Card c) {
+  const names = {
+    domain.Rank.jack: 'Bube',
+    domain.Rank.queen: 'Dame',
+    domain.Rank.king: 'König',
+    domain.Rank.ace: 'Ass',
+  };
+  return '${names[c.rank] ?? c.rank.symbol} ${c.suit.name}';
 }

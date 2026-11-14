@@ -25,49 +25,33 @@ Das Spiel endet, wenn das Deck erschöpft ist. Gewonnen hat, wer die **wenigsten
 
 ## Features
 
-- 👥 Spieler-Verwaltung (beliebig viele Spieler)
-- 🃏 5×5 Kartengitter mit dynamischer Positionsvalidierung
-- 🎯 Kontextsensitive Guess-Buttons je nach Nachbarzahl
-- 🔢 Multiplikator-System (1× – 4×), der an den nächsten Spieler weitergegeben wird
-- 📊 Scoreboard mit Strafpunkten pro Runde
-- 🌑 Dark-Theme mit lila Akzentfarbe
+- 🃏 Echte Kartenoptik auf einem 5×5-Tisch, freie Felder zeigen ihre Nachbarzahl
+- 🎯 Risiko vor dem Tipp: Zeile und Spalte werden markiert, die Schlücke stehen im Tipp-Sheet
+- 🍺 Pegel-Anzeige für den Multiplikator, inkl. Wert für die Weitergabe
+- 🔥 Hausregel **Streak-Multiplikator**: jede fehlerfreie Weitergabe +1x (2x, 3x, 4x …)
+- 📈 Optionale Trefferchancen, berechnet aus den noch nicht gezogenen Karten
+- 💀 Fehler als Vollbild – der Bestätigen-Knopf ist immer ohne Scrollen sichtbar
+- 👥 Spieler mit eigener Farbe, per Ziehen sortierbar, im Spiel aktivier-/deaktivierbar
+- 📊 Auswertung mit Rangliste, Highlights, Fehler-Verlauf und Revanche
+- 📖 Regel-Seite für neue Mitspieler
 
 ---
 
 ## Screenshots
 
-### 📱 Smartphone
+| Start | Spielfeld | Fehler |
+|-------|-----------|--------|
+| ![Start](docs/screenshots/setup.png) | ![Spielfeld](docs/screenshots/game.png) | ![Fehler](docs/screenshots/failure.png) |
 
-| Setup | Spielfeld | Scoreboard |
-|-------|-----------|------------|
-| ![Setup-Screen](docs/screenshots/setup.png) | ![Spielfeld](docs/screenshots/game.png) | ![Scoreboard](docs/screenshots/scoreboard.png) |
+| Entscheidung | Auswertung | Regeln |
+|--------------|------------|--------|
+| ![Entscheidung](docs/screenshots/decision.png) | ![Auswertung](docs/screenshots/scoreboard.png) | ![Regeln](docs/screenshots/rules.png) |
 
-| Verlauf | Einstellungen |
-|---------|---------------|
-| ![Verlauf](docs/screenshots/history.png) | ![Einstellungen](docs/screenshots/settings.png) |
+**Tablet (Querformat)**
 
----
+![Spielfeld Tablet](docs/screenshots/game_tablet.png)
 
-### 🖥️ Tablet (Querformat)
-
-| Setup | Spielfeld |
-|-------|-----------|
-| ![Setup Tablet](docs/screenshots/setup_tablet.png) | ![Spielfeld Tablet](docs/screenshots/game_tablet.png) |
-
----
-
-### 🎴 Animationen
-
-Die App enthält flüssige Animationen für ein besseres Spielerlebnis:
-
-| Karten-Flip beim Platzieren | Misserfolg & Zeilen-Räumung |
-|-----------------------------|------------------------------|
-| ![Karten-Flip-Animation](docs/screenshots/animation_flip.png) | ![Misserfolg-Animation](docs/screenshots/failure.png) |
-
-- **Karten-Flip**: Neu platzierte Karten klappen sich mit einer 3D-Rotation auf dem Spielfeld auf.
-- **Ausblend-Effekt**: Beim Misserfolg werden die betroffene Zeile und Spalte sanft ausgeblendet.
-- **AnimatedContainer**: Gültige Felder und Rahmenfarben wechseln animiert (200 ms Ease-In-Out).
-- Animationen können in den **Einstellungen** deaktiviert werden.
+Neu gelegte Karten klappen mit einer 3D-Drehung auf, abgeräumte Karten blenden aus, und der Fehler-Screen wackelt kurz. Animationen lassen sich in den Hausregeln abschalten.
 
 ---
 
@@ -150,19 +134,29 @@ keyPassword=...
 ```
 lib/
 ├── domain/
-│   └── models.dart          # Datenmodelle: Card, Deck, Position, Guess, Player
+│   └── models.dart          # Datenmodelle: Card, Deck, Position, Guess
 ├── engine/
 │   └── game_engine.dart     # Spiellogik: Platzierung, Guess-Auswertung, Failure-Mechanik
+├── l10n/
+│   └── app_strings.dart     # Alle sichtbaren Texte
 ├── providers/
-│   └── game_provider.dart   # State-Management (ChangeNotifier / Provider)
+│   ├── game_provider.dart   # Spielzustand, Multiplikator, Streak, Vorschau-Werte
+│   └── settings_provider.dart # Hausregeln & Einstellungen
 ├── screens/
-│   ├── setup_screen.dart    # Spieler-Verwaltung vor dem Spiel
-│   ├── game_screen.dart     # Hauptspielbildschirm
-│   └── scoreboard_screen.dart # Ergebnisanzeige nach dem Spiel
+│   ├── setup_screen.dart    # Start: Spieler, Hausregeln
+│   ├── game_screen.dart     # Spieltisch, Sheets, Fehler-Vollbild
+│   ├── scoreboard_screen.dart # Auswertung & Revanche
+│   ├── history_screen.dart  # Verlauf gespeicherter Spiele
+│   └── rules_screen.dart    # Regeln
+├── theme/
+│   └── app_theme.dart       # Farb- und Schrift-Tokens, ThemeData
 ├── widgets/
-│   ├── game_board.dart      # 5×5 Kartengitter-Widget
-│   ├── guess_controls.dart  # Vorhersage-Buttons
-│   └── player_info_bar.dart # Statusleiste (Spieler, Calls, Strafpunkte, Multiplikator)
+│   ├── card_face.dart       # Kartenvorderseiten
+│   ├── game_board.dart      # 5×5 Tisch (passt sich immer ohne Scrollen ein)
+│   ├── guess_controls.dart  # Tipp-Sheet inkl. Wertebereichen & Chancen
+│   ├── player_info_bar.dart # Spielerleiste & Pegel
+│   ├── settings_dialog.dart # Hausregeln-Liste & Einstellungsdialog
+│   └── sheet.dart           # Bottom-Sheet, Knöpfe, Auswahlkacheln
 └── main.dart                # App-Einstiegspunkt & Routing
 ```
 

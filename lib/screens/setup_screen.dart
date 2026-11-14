@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/game_provider.dart';
-import '../widgets/settings_dialog.dart';
-import 'history_screen.dart';
 
+import '../l10n/app_strings.dart';
+import '../providers/game_provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/settings_dialog.dart';
+import '../widgets/sheet.dart';
+
+/// Start screen: players (sortable), house rules and the start button.
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key});
 
@@ -13,61 +17,137 @@ class SetupScreen extends StatefulWidget {
 
 class _SetupScreenState extends State<SetupScreen> {
   final _controller = TextEditingController();
+  final _focus = FocusNode();
 
   @override
   void dispose() {
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
-  void _addPlayer(BuildContext context) {
+  void _addPlayer() {
     final name = _controller.text.trim();
-    if (name.isNotEmpty) {
-      context.read<GameProvider>().addPlayer(name);
-      _controller.clear();
-    }
+    if (name.isEmpty) return;
+    context.read<GameProvider>().addPlayer(name);
+    _controller.clear();
+    _focus.requestFocus();
   }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF1A1A2E),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF16213E),
-          title: const Text(
-            'Matrix – Das Kartentrinkspiel',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          centerTitle: true,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings, color: Colors.white),
-              tooltip: 'Einstellungen',
-              onPressed: () => showDialog(
-                context: context,
-                builder: (_) => const SettingsDialog(),
+    final provider = context.watch<GameProvider>();
+    final players = provider.players;
+
+    return Scaffold(
+      backgroundColor: AppColors.table,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(AppStrings.appTitle,
+                              style: AppText.display(44, letterSpacing: -1)),
+                          const SizedBox(height: 4),
+                          Text(AppStrings.appTagline,
+                              style: AppText.body(13, color: AppColors.muted)),
+                          const SizedBox(height: 24),
+                          Text(AppStrings.roundLabel(players.length),
+                              style: AppText.eyebrow()),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    sliver: SliverReorderableList(
+                      itemCount: players.length,
+                      onReorder: provider.reorderPlayers,
+                      proxyDecorator: (child, _, __) =>
+                          Material(color: Colors.transparent, child: child),
+                      itemBuilder: (context, i) {
+                        final p = players[i];
+                        return Padding(
+                          key: ObjectKey(p),
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: _PlayerRow(
+                            index: i,
+                            player: p,
+                            onRemove: () => provider.removePlayer(i),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _AddPlayerField(
+                            controller: _controller,
+                            focusNode: _focus,
+                            onSubmit: _addPlayer,
+                          ),
+                          const SizedBox(height: 28),
+                          Text(AppStrings.houseRules, style: AppText.eyebrow()),
+                          const SizedBox(height: 4),
+                          const HouseRulesList(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-          bottom: const TabBar(
-            indicatorColor: Color(0xFF533483),
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white54,
-            tabs: [
-              Tab(icon: Icon(Icons.people), text: 'Neues Spiel'),
-              Tab(icon: Icon(Icons.history), text: 'Verlauf'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _SetupContent(
-              controller: _controller,
-              onAddPlayer: _addPlayer,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SheetButton(
+                    label: AppStrings.startGame,
+                    detail: players.isEmpty
+                        ? AppStrings.needPlayers
+                        : AppStrings.startsFirst(players.first.name),
+                    primary: true,
+                    onPressed: players.isEmpty
+                        ? null
+                        : () {
+                            provider.startGame();
+                            Navigator.pushReplacementNamed(context, '/game');
+                          },
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pushNamed(context, '/rules'),
+                        child: Text(AppStrings.rulesTitle,
+                            style: AppText.body(13, color: AppColors.muted)),
+                      ),
+                      Text('·',
+                          style: AppText.body(13, color: AppColors.muted)),
+                      TextButton(
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/history'),
+                        child: Text(AppStrings.historyTitle,
+                            style: AppText.body(13, color: AppColors.muted)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const HistoryScreen(),
           ],
         ),
       ),
@@ -75,133 +155,101 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 }
 
-class _SetupContent extends StatelessWidget {
-  final TextEditingController controller;
-  final void Function(BuildContext) onAddPlayer;
+class _PlayerRow extends StatelessWidget {
+  final int index;
+  final Player player;
+  final VoidCallback onRemove;
 
-  const _SetupContent({
-    required this.controller,
-    required this.onAddPlayer,
+  const _PlayerRow({
+    required this.index,
+    required this.player,
+    required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<GameProvider>();
-
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: AppColors.raised,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
         children: [
-          const SizedBox(height: 20),
-          const Text(
-            'Spieler hinzufügen',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
+          CircleAvatar(
+            radius: 15,
+            backgroundColor: AppColors.player(player.colorIndex),
+            child: Text(
+              player.name.characters.first.toUpperCase(),
+              style: AppText.display(14, weight: 700, color: AppColors.table),
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  textCapitalization: TextCapitalization.words,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Spielername...',
-                    hintStyle: const TextStyle(color: Colors.white54),
-                    filled: true,
-                    fillColor: const Color(0xFF0F3460),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  onSubmitted: (_) => onAddPlayer(context),
-                ),
-              ),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: () => onAddPlayer(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF533483),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  '+',
-                  style: TextStyle(fontSize: 24, color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(width: 12),
           Expanded(
-            child: ListView.builder(
-              itemCount: provider.players.length,
-              itemBuilder: (context, index) {
-                final player = provider.players[index];
-                return Card(
-                  color: const Color(0xFF0F3460),
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  child: ListTile(
-                    title: Text(
-                      player.name,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(0xFF533483),
-                      child: Text(
-                        '${index + 1}',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.remove_circle,
-                          color: Colors.redAccent),
-                      onPressed: () => provider.removePlayer(index),
-                    ),
-                  ),
-                );
-              },
-            ),
+            child: Text(player.name,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.body(15, weight: FontWeight.w500)),
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: provider.players.isEmpty
-                ? null
-                : () {
-                    provider.startGame();
-                    Navigator.pushReplacementNamed(context, '/game');
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF533483),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              disabledBackgroundColor: Colors.grey,
-            ),
-            child: const Text(
-              'Spiel starten',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+          IconButton(
+            onPressed: onRemove,
+            tooltip: AppStrings.removePlayer,
+            icon: const Icon(Icons.close, size: 18, color: AppColors.muted),
+          ),
+          ReorderableDragStartListener(
+            index: index,
+            child: const Tooltip(
+              message: AppStrings.reorderHint,
+              child: Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.drag_indicator, color: AppColors.muted),
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _AddPlayerField extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final VoidCallback onSubmit;
+
+  const _AddPlayerField({
+    required this.controller,
+    required this.focusNode,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AppColors.line, width: 1.5),
+    );
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      textCapitalization: TextCapitalization.words,
+      textInputAction: TextInputAction.done,
+      style: AppText.body(15),
+      decoration: InputDecoration(
+        hintText: '+ ${AppStrings.addPlayerHint}',
+        hintStyle: AppText.body(14, color: AppColors.muted),
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        enabledBorder: border,
+        focusedBorder: border.copyWith(
+            borderSide: const BorderSide(color: AppColors.amber, width: 1.5)),
+        suffixIcon: IconButton(
+          onPressed: onSubmit,
+          tooltip: AppStrings.add,
+          icon: const Icon(Icons.add, color: AppColors.amber),
+        ),
+      ),
+      onSubmitted: (_) => onSubmit(),
     );
   }
 }

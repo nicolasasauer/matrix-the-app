@@ -7,6 +7,7 @@ class SettingsProvider extends ChangeNotifier {
 
   bool _animationsEnabled = true;
   bool _streakMultiplierEnabled = false;
+  bool _showProbabilities = false;
 
   SettingsProvider(this._service);
 
@@ -16,9 +17,13 @@ class SettingsProvider extends ChangeNotifier {
   /// raises the multiplier by one (2x, 3x, 4x, ...) until someone fails.
   bool get streakMultiplierEnabled => _streakMultiplierEnabled;
 
+  /// Show the chance of each guess (computed from the unseen cards).
+  bool get showProbabilities => _showProbabilities;
+
   Future<void> load() async {
     _animationsEnabled = await _service.loadAnimationsEnabled();
     _streakMultiplierEnabled = await _service.loadStreakMultiplierEnabled();
+    _showProbabilities = await _service.loadShowProbabilities();
     notifyListeners();
   }
 
@@ -32,5 +37,11 @@ class SettingsProvider extends ChangeNotifier {
     _streakMultiplierEnabled = value;
     notifyListeners();
     unawaited(_service.setStreakMultiplierEnabled(value).catchError((_) {}));
+  }
+
+  void setShowProbabilities(bool value) {
+    _showProbabilities = value;
+    notifyListeners();
+    unawaited(_service.setShowProbabilities(value).catchError((_) {}));
   }
 }

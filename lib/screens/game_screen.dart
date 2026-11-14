@@ -4,752 +4,492 @@ import 'package:provider/provider.dart';
 import '../l10n/app_strings.dart';
 import '../providers/game_provider.dart';
 import '../providers/settings_provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/card_face.dart';
 import '../widgets/game_board.dart';
 import '../widgets/guess_controls.dart';
 import '../widgets/player_info_bar.dart';
 import '../widgets/settings_dialog.dart';
-import '../widgets/card_face.dart';
+import '../widgets/sheet.dart';
 
-class GameScreen extends StatefulWidget {
+/// The table. Layout is fixed: player strip and HUD on top, the board takes
+/// whatever height is left, and all actions live in the bottom sheet. Nothing
+/// on this screen needs scrolling.
+class GameScreen extends StatelessWidget {
   const GameScreen({super.key});
 
-  @override
-  State<GameScreen> createState() => _GameScreenState();
-}
-
-class _GameScreenState extends State<GameScreen> {
-  /// Prevents the decision dialog from being triggered multiple times while
-  /// the phase remains [GamePhase.awaitingDecision].
-  bool _decisionDialogShown = false;
-
-  void _showDecisionDialog() {
-    _decisionDialogShown = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final provider = context.read<GameProvider>();
-      if (provider.phase != GamePhase.awaitingDecision) return;
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => const _DecisionDialog(),
-      ).then((_) {
-        if (mounted) setState(() => _decisionDialogShown = false);
-      });
-    });
+  Future<void> _confirmLeave(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.raised,
+        title: Text(AppStrings.endGameTitle, style: AppText.display(20)),
+        content: Text(AppStrings.endGameContent,
+            style: AppText.body(14, color: AppColors.muted)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(AppStrings.cancel,
+                style: AppText.body(14, color: AppColors.fg)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(AppStrings.yesEnd,
+                style: AppText.body(14,
+                    weight: FontWeight.w600, color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      Navigator.pushReplacementNamed(context, '/');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<GameProvider>();
-    final engine = provider.engine;
-
-    if (engine == null) {
-      return const Scaffold(
-        body: Center(child: Text(AppStrings.noGameStarted)),
+    if (provider.engine == null) {
+      return Scaffold(
+        body: Center(
+          child: TextButton(
+            onPressed: () => Navigator.pushReplacementNamed(context, '/'),
+            child: Text(AppStrings.backToMenu,
+                style: AppText.body(15, color: AppColors.amber)),
+          ),
+        ),
       );
     }
+    final phase = provider.phase;
+    final animate = context.watch<SettingsProvider>().animationsEnabled;
 
-    // Trigger decision dialog exactly once per awaitingDecision phase entry.
-    if (provider.phase == GamePhase.awaitingDecision && !_decisionDialogShown) {
-      _showDecisionDialog();
-    } else if (provider.phase != GamePhase.awaitingDecision) {
-      _decisionDialogShown = false;
-    }
-
-    // Determine whether any inline controls/banners should be shown below the
-    // board. The awaitingDecision phase is handled by the dialog instead.
-    final showInlineControls = provider.phase == GamePhase.makingGuess ||
-        provider.phase == GamePhase.showingFailure ||
-        provider.phase == GamePhase.matrixFull ||
-        provider.phase == GamePhase.gameOver;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2E),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF16213E),
-        leading: IconButton(
-          icon: const Icon(Icons.home, color: Colors.white),
-          onPressed: () async {
-            final confirmed = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                backgroundColor: const Color(0xFF16213E),
-                title: const Text(
-                  AppStrings.endGameTitle,
-                  style: TextStyle(color: Colors.white),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmLeave(context);
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.table,
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                SafeArea(
+                  bottom: false,
+                  child: _TopBar(onHome: () => _confirmLeave(context)),
                 ),
-                content: const Text(
-                  AppStrings.endGameContent,
-                  style: TextStyle(color: Colors.white70),
+                const GameHud(),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child:
+                        GameBoard(dimmed: phase == GamePhase.awaitingDecision),
+                  ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(false),
-                    child: const Text(AppStrings.cancel),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(true),
-                    child: const Text(
-                      AppStrings.yesEnd,
-                      style: TextStyle(color: Colors.red),
-                    ),
-                  ),
-                ],
+                const SizedBox(height: 10),
+                _FitSheet(
+                  child: animate
+                      ? AnimatedSize(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOut,
+                          alignment: Alignment.bottomCenter,
+                          child: _sheetFor(provider),
+                        )
+                      : _sheetFor(provider),
+                ),
+              ],
+            ),
+            if (phase == GamePhase.showingFailure)
+              Positioned.fill(
+                child:
+                    _ShakeIn(enabled: animate, child: const _FailureOverlay()),
               ),
-            );
-            if (confirmed == true && context.mounted) {
-              Navigator.pushReplacementNamed(context, '/');
-            }
-          },
+          ],
         ),
-        title: const Text(
-          AppStrings.appTitle,
-          style: TextStyle(color: Colors.white),
-        ),
-        actions: [
+      ),
+    );
+  }
+
+  Widget _sheetFor(GameProvider provider) {
+    switch (provider.phase) {
+      case GamePhase.makingGuess:
+        final pos = provider.selectedPosition;
+        if (pos != null) {
+          return GuessSheet(key: ValueKey('guess$pos'), position: pos);
+        }
+        return const _PickSheet();
+      case GamePhase.awaitingDecision:
+        return const _DecisionSheet();
+      case GamePhase.gameOver:
+        return const _EndSheet(matrixFull: false);
+      case GamePhase.matrixFull:
+        return const _EndSheet(matrixFull: true);
+      case GamePhase.selectingPosition:
+      case GamePhase.showingFailure:
+        return const _PickSheet();
+    }
+  }
+}
+
+/// Keeps the action sheet at most 60 % of the screen high. On very small
+/// phones the sheet is scaled down instead of becoming scrollable, so every
+/// button stays reachable and the board keeps at least 40 %.
+class _FitSheet extends StatelessWidget {
+  final Widget child;
+  const _FitSheet({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: size.height * 0.6),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.bottomCenter,
+        child: SizedBox(width: size.width, child: child),
+      ),
+    );
+  }
+}
+
+// ── Top bar ─────────────────────────────────────────────────────────────────
+
+enum _MenuAction { players, scoreboard, rules, settings }
+
+class _TopBar extends StatelessWidget {
+  final VoidCallback onHome;
+  const _TopBar({required this.onHome});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
           IconButton(
-            icon: const Icon(Icons.group, color: Colors.white),
-            tooltip: AppStrings.managePlayersTitle,
-            onPressed: () => showDialog(
-              context: context,
-              builder: (_) => const _PlayerManagementDialog(),
-            ),
+            onPressed: onHome,
+            tooltip: AppStrings.backToMenu,
+            icon: const Icon(Icons.home_outlined, color: AppColors.fg),
           ),
-          IconButton(
-            icon: const Icon(Icons.leaderboard, color: Colors.white),
-            onPressed: () => Navigator.pushNamed(context, '/scoreboard'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
-            tooltip: AppStrings.settingsTitle,
-            onPressed: () => showDialog(
-              context: context,
-              builder: (_) => const SettingsDialog(),
-            ),
+          const Expanded(child: PlayerStrip()),
+          PopupMenuButton<_MenuAction>(
+            icon: const Icon(Icons.more_vert, color: AppColors.fg),
+            color: AppColors.raised,
+            onSelected: (a) {
+              switch (a) {
+                case _MenuAction.players:
+                  showDialog(
+                      context: context,
+                      builder: (_) => const _PlayerManagementDialog());
+                case _MenuAction.scoreboard:
+                  Navigator.pushNamed(context, '/scoreboard');
+                case _MenuAction.rules:
+                  Navigator.pushNamed(context, '/rules');
+                case _MenuAction.settings:
+                  showDialog(
+                      context: context, builder: (_) => const SettingsDialog());
+              }
+            },
+            itemBuilder: (_) => [
+              _item(_MenuAction.scoreboard, Icons.leaderboard_outlined,
+                  AppStrings.scoreboardTitle),
+              _item(_MenuAction.players, Icons.group_outlined,
+                  AppStrings.managePlayersTitle),
+              _item(_MenuAction.rules, Icons.menu_book_outlined,
+                  AppStrings.rulesTitle),
+              _item(_MenuAction.settings, Icons.tune, AppStrings.settingsTitle),
+            ],
           ),
         ],
       ),
-      // ── Responsive body: board always visible, controls scroll if needed ──
-      body: Column(
-        children: [
-          const PlayerInfoBar(),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                children: [
-                  // Board fills all available height; LayoutBuilder inside
-                  // GameBoard constrains it to a square.
-                  const Expanded(child: GameBoard()),
-                  // Inline controls / banners: capped so the board is never
-                  // pushed off-screen.
-                  if (showInlineControls)
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 240),
-                      child: SingleChildScrollView(
+    );
+  }
+
+  PopupMenuItem<_MenuAction> _item(_MenuAction a, IconData icon, String text) =>
+      PopupMenuItem(
+        value: a,
+        child: Row(children: [
+          Icon(icon, size: 20, color: AppColors.muted),
+          const SizedBox(width: 12),
+          Text(text, style: AppText.body(14)),
+        ]),
+      );
+}
+
+// ── Sheets ──────────────────────────────────────────────────────────────────
+
+class _PickSheet extends StatelessWidget {
+  const _PickSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final name = context.watch<GameProvider>().currentPlayer?.name ?? '';
+    return GameSheet(
+      key: const ValueKey('pick'),
+      children: [
+        Text('$name: ${AppStrings.pickCell}',
+            textAlign: TextAlign.center,
+            style: AppText.display(17, weight: 700)),
+        Text(AppStrings.pickCellHint,
+            textAlign: TextAlign.center,
+            style: AppText.body(11.5, color: AppColors.muted, height: 1.3)),
+      ],
+    );
+  }
+}
+
+class _DecisionSheet extends StatelessWidget {
+  const _DecisionSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.watch<GameProvider>();
+    final next = p.nextPlayer?.name ?? '';
+    final continueTarget = GameProvider.nextMultiplier(p.globalMultiplier + 1,
+        streakRule: p.streakRuleEnabled);
+
+    return GameSheet(
+      key: const ValueKey('decision'),
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            3,
+            (_) => Container(
+              width: 26,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                color: AppColors.ok,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+        Text(AppStrings.correctInARow(p.turnCalls),
+            textAlign: TextAlign.center, style: AppText.display(22)),
+        ChoiceTile(
+          title: AppStrings.decisionSaveAndPass,
+          subtitle: AppStrings.decisionSaveSubtitle(next),
+          tag: '${p.passOnMultiplier}x',
+          accent: AppColors.amber,
+          highlighted: true,
+          onPressed: p.endTurn,
+        ),
+        ChoiceTile(
+          title: AppStrings.decisionContinue,
+          subtitle: AppStrings.decisionContinueSubtitle(
+              p.inheritedMultiplier, continueTarget),
+          tag: '→ ${continueTarget}x',
+          accent: AppColors.ok,
+          onPressed: p.continuePlay,
+        ),
+      ],
+    );
+  }
+}
+
+class _EndSheet extends StatelessWidget {
+  final bool matrixFull;
+  const _EndSheet({required this.matrixFull});
+
+  @override
+  Widget build(BuildContext context) {
+    return GameSheet(
+      key: ValueKey('end$matrixFull'),
+      children: [
+        if (matrixFull) ...[
+          Text(AppStrings.matrixFull,
+              textAlign: TextAlign.center,
+              style: AppText.display(30, color: AppColors.gold)),
+          Text(AppStrings.matrixFullSubtitle,
+              textAlign: TextAlign.center,
+              style: AppText.body(13, color: AppColors.muted)),
+        ] else
+          Text(AppStrings.gameOver,
+              textAlign: TextAlign.center, style: AppText.display(22)),
+        SheetButton(
+          label: AppStrings.showResult,
+          primary: true,
+          background: matrixFull ? AppColors.gold : null,
+          labelColor: matrixFull ? AppColors.amberInk : null,
+          icon: Icons.emoji_events_outlined,
+          onPressed: () =>
+              Navigator.pushReplacementNamed(context, '/scoreboard'),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Failure overlay ─────────────────────────────────────────────────────────
+
+class _FailureOverlay extends StatelessWidget {
+  const _FailureOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.watch<GameProvider>();
+    final name = p.currentPlayer?.name ?? '';
+    final card = p.drawnCard;
+    final guess = p.lastGuess;
+    final penalty = p.pendingPenalty;
+    final mult = p.inheritedMultiplier;
+
+    return Material(
+      color: AppColors.table,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -0.4),
+            radius: 1.1,
+            colors: [Color(0xFF5A1418), Color(0xFF2A0B10), AppColors.table],
+            stops: [0, 0.6, 1],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Everything above the button scales down on small screens,
+                // so the button is always visible without scrolling.
+                Expanded(
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: SizedBox(
+                        width: 300,
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const SizedBox(height: 8),
-                            if (provider.phase == GamePhase.makingGuess &&
-                                provider.selectedPosition != null)
-                              GuessControls(
-                                  position: provider.selectedPosition!),
-                            if (provider.phase == GamePhase.showingFailure)
-                              const _AnimatedBanner(
-                                  shake: true, child: _FailureBanner()),
-                            if (provider.phase == GamePhase.matrixFull)
-                              const _AnimatedBanner(
-                                  child: _MatrixFullBanner()),
-                            if (provider.phase == GamePhase.gameOver)
-                              const _AnimatedBanner(child: _GameOverBanner()),
+                            Text(AppStrings.playerDrinks(name),
+                                textAlign: TextAlign.center,
+                                style: AppText.display(30)),
+                            if (guess != null) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                AppStrings.guessed(
+                                    describeGuess(guess, p.lastNeighbors)),
+                                textAlign: TextAlign.center,
+                                style: AppText.body(13,
+                                    color: AppColors.dangerText),
+                              ),
+                            ],
+                            if (card != null) ...[
+                              const SizedBox(height: 22),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  BigCard(card: card, width: 64),
+                                  const SizedBox(width: 18),
+                                  Text('${AppStrings.drawn}\n${cardName(card)}',
+                                      style: AppText.body(13,
+                                          color: AppColors.dangerText,
+                                          height: 1.35)),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 20),
+                            Text('$penalty',
+                                style: AppText.display(110,
+                                    height: 0.95, letterSpacing: -4)),
+                            Text(AppStrings.sipsLabel(penalty).toUpperCase(),
+                                style: AppText.mono(12,
+                                    color: AppColors.dangerText,
+                                    letterSpacing: 2)),
+                            const SizedBox(height: 14),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                  AppStrings.failureCalc(
+                                      p.pendingClearCount, mult),
+                                  style:
+                                      AppText.mono(12.5, color: AppColors.fg)),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Failure banner ────────────────────────────────────────────────────────────
-
-class _FailureBanner extends StatelessWidget {
-  const _FailureBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<GameProvider>();
-    final card = provider.drawnCard;
-    final penalty = provider.pendingPenalty;
-    final playerName = provider.currentPlayer?.name ?? '';
-
-    return Container(
-      margin: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF3D0000),
-            Colors.red.shade900,
-            const Color(0xFF3D0000),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.red.shade400, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.withValues(alpha: 0.4),
-            blurRadius: 20,
-            spreadRadius: 4,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.3),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(18)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('💀', style: TextStyle(fontSize: 22)),
-                const SizedBox(width: 10),
-                Text(
-                  AppStrings.playerFailed(playerName),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(width: 10),
-                const Text('💀', style: TextStyle(fontSize: 22)),
-              ],
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              children: [
-                // Card display
-                if (card != null)
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.red.shade700,
-                          width: 1.5,
-                        ),
+                const SizedBox(height: 12),
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: SheetButton(
+                        label: AppStrings.confirmClear,
+                        detail: AppStrings.afterFailure(name, mult > 1),
+                        background: AppColors.danger,
+                        icon: Icons.delete_sweep_outlined,
+                        onPressed: p.confirmFailure,
                       ),
-                      child: Column(
-                        children: [
-                          Text(
-                            AppStrings.drawnCard,
-                            style: TextStyle(
-                              color: Colors.red.shade300,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          CardLarge(card: card),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                if (card != null) const SizedBox(width: 12),
-
-                // Drink count badge
-                Expanded(
-                  flex: 2,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 16),
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        colors: [
-                          Colors.red.shade700,
-                          Colors.red.shade900,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.red.shade300,
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.red.withValues(alpha: 0.5),
-                          blurRadius: 12,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          '🍺',
-                          style: TextStyle(fontSize: 32),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$penalty',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 52,
-                            fontWeight: FontWeight.w900,
-                            height: 1.0,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          AppStrings.sipsLabel(penalty),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                 ),
               ],
             ),
           ),
-
-          // Info line
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.info_outline,
-                    color: Colors.red.shade300, size: 14),
-                const SizedBox(width: 4),
-                Text(
-                  AppStrings.rowColCleared,
-                  style: TextStyle(
-                    color: Colors.red.shade300,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Confirm button
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: provider.confirmFailure,
-                icon: const Icon(Icons.delete_sweep, color: Colors.white),
-                label: const Text(
-                  AppStrings.confirmClear,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade700,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 4,
-                  shadowColor: Colors.red.withValues(alpha: 0.5),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Decision dialog (shown as modal overlay after 3 correct calls) ────────────
-
-class _DecisionDialog extends StatelessWidget {
-  const _DecisionDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<GameProvider>();
-
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.green.shade900,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.greenAccent, width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.green.withValues(alpha: 0.5),
-              blurRadius: 24,
-              spreadRadius: 4,
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                AppStrings.decisionTitle,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.check_circle,
-                      color: Colors.greenAccent, size: 22),
-                  const SizedBox(width: 8),
-                  Text(
-                    AppStrings.correctCallsCount(provider.turnCalls),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                AppStrings.multiplierLabel(provider.globalMultiplier),
-                style: const TextStyle(
-                    color: Colors.greenAccent, fontSize: 16),
-              ),
-              const SizedBox(height: 20),
-              // Save & pass turn
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    provider.endTurn();
-                    Navigator.of(context).pop();
-                  },
-                  icon: const Icon(Icons.save_alt, color: Colors.white),
-                  label: Text(
-                    '${AppStrings.decisionSaveAndPass} (${provider.passOnMultiplier}x)',
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade700,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Continue (risk it for higher multiplier)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    provider.continuePlay();
-                    Navigator.of(context).pop();
-                  },
-                  icon: const Icon(Icons.trending_up, color: Colors.white),
-                  label: Text(
-                    '${AppStrings.decisionContinue} (×${provider.globalMultiplier + 1} riskieren)',
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
   }
 }
 
-// ── Game Over banner ──────────────────────────────────────────────────────────
-
-class _GameOverBanner extends StatelessWidget {
-  const _GameOverBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF533483),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.purple, width: 2),
-      ),
-      child: Column(
-        children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.celebration, color: Colors.yellow, size: 26),
-              SizedBox(width: 8),
-              Text(
-                AppStrings.gameOver,
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold),
-              ),
-              SizedBox(width: 8),
-              Icon(Icons.celebration, color: Colors.yellow, size: 26),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: () =>
-                Navigator.pushReplacementNamed(context, '/scoreboard'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text(
-              AppStrings.showResult,
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Matrix Full banner ────────────────────────────────────────────────────────
-
-class _MatrixFullBanner extends StatelessWidget {
-  const _MatrixFullBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1A0050),
-            Color(0xFF6A0DAD),
-            Color(0xFF1A0050),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Color(0xFFFFD700), width: 3),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0xFFFFD700),
-            blurRadius: 24,
-            spreadRadius: 4,
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const Text(
-              '🏆✨🎉',
-              style: TextStyle(fontSize: 40),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              AppStrings.matrixFull,
-              style: TextStyle(
-                color: Color(0xFFFFD700),
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              AppStrings.matrixFullSubtitle,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              AppStrings.matrixFullLegend,
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () =>
-                  Navigator.pushReplacementNamed(context, '/scoreboard'),
-              icon: const Icon(Icons.emoji_events,
-                  color: Colors.black, size: 20),
-              label: const Text(
-                AppStrings.showResult,
-                style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD700),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                elevation: 6,
-                shadowColor: const Color(0xFFFFD700),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Animated banner wrapper ───────────────────────────────────────────────────
-
-class _AnimatedBanner extends StatefulWidget {
+/// Fades/slides the child in and shakes it once.
+class _ShakeIn extends StatefulWidget {
   final Widget child;
-  final bool shake;
-
-  const _AnimatedBanner({required this.child, this.shake = false});
+  final bool enabled;
+  const _ShakeIn({required this.child, required this.enabled});
 
   @override
-  State<_AnimatedBanner> createState() => _AnimatedBannerState();
+  State<_ShakeIn> createState() => _ShakeInState();
 }
 
-class _AnimatedBannerState extends State<_AnimatedBanner>
-    with TickerProviderStateMixin {
-  late final AnimationController _slideController;
-  late final AnimationController _shakeController;
-  late final Animation<Offset> _slideAnim;
-  late final Animation<double> _fadeAnim;
-  late final Animation<double> _shakeAnim;
-  bool _started = false;
+class _ShakeInState extends State<_ShakeIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 650));
+
+  late final Animation<double> _fade =
+      CurvedAnimation(parent: _c, curve: const Interval(0, 0.35));
+  late final Animation<double> _shake = TweenSequence<double>([
+    TweenSequenceItem(tween: ConstantTween(0), weight: 35),
+    TweenSequenceItem(tween: Tween(begin: 0, end: -10), weight: 10),
+    TweenSequenceItem(tween: Tween(begin: -10, end: 10), weight: 15),
+    TweenSequenceItem(tween: Tween(begin: 10, end: -6), weight: 15),
+    TweenSequenceItem(tween: Tween(begin: -6, end: 0), weight: 25),
+  ]).animate(_c);
 
   @override
   void initState() {
     super.initState();
-    _slideController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 350),
-    );
-    _shakeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 480),
-    );
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.25),
-      end: Offset.zero,
-    ).animate(
-        CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
-    _fadeAnim =
-        CurvedAnimation(parent: _slideController, curve: Curves.easeIn);
-    _shakeAnim = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: -10.0), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: -10.0, end: 10.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 10.0, end: -8.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
-    ]).animate(_shakeController);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_started) {
-      _started = true;
-      final enabled = context.read<SettingsProvider>().animationsEnabled;
-      if (enabled) {
-        _slideController.forward();
-        if (widget.shake) {
-          _slideController.addStatusListener(_onSlideComplete);
-        }
-      } else {
-        _slideController.value = 1.0;
-      }
-    }
-  }
-
-  void _onSlideComplete(AnimationStatus status) {
-    if (status == AnimationStatus.completed) {
-      _slideController.removeStatusListener(_onSlideComplete);
-      _shakeController.forward();
-    }
+    widget.enabled ? _c.forward() : _c.value = 1;
   }
 
   @override
   void dispose() {
-    _slideController.dispose();
-    _shakeController.dispose();
+    _c.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_slideController, _shakeController]),
-      builder: (context, child) => Transform.translate(
-        offset: Offset(_shakeAnim.value, 0),
-        child: FadeTransition(
-          opacity: _fadeAnim,
-          child: SlideTransition(
-            position: _slideAnim,
-            child: child,
-          ),
+      animation: _c,
+      builder: (context, child) => Opacity(
+        opacity: _fade.value,
+        child: Transform.translate(
+          offset: Offset(_shake.value, 0),
+          child: child,
         ),
       ),
       child: widget.child,
@@ -757,7 +497,7 @@ class _AnimatedBannerState extends State<_AnimatedBanner>
   }
 }
 
-// ── Player management dialog ──────────────────────────────────────────────────
+// ── Player management dialog ────────────────────────────────────────────────
 
 class _PlayerManagementDialog extends StatefulWidget {
   const _PlayerManagementDialog();
@@ -776,7 +516,7 @@ class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
     super.dispose();
   }
 
-  void _addPlayer(BuildContext context) {
+  void _addPlayer() {
     final name = _controller.text.trim();
     if (name.isNotEmpty) {
       context.read<GameProvider>().addPlayer(name);
@@ -790,73 +530,73 @@ class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
     final players = provider.players;
 
     return AlertDialog(
-      backgroundColor: const Color(0xFF16213E),
-      title: const Text(
-        AppStrings.managePlayersTitle,
-        style: TextStyle(color: Colors.white),
-      ),
+      backgroundColor: AppColors.raised,
+      title: Text(AppStrings.managePlayersTitle, style: AppText.display(20)),
       content: SizedBox(
         width: double.maxFinite,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 280),
+            Flexible(
               child: ListView.builder(
                 shrinkWrap: true,
                 itemCount: players.length,
                 itemBuilder: (context, index) {
                   final player = players[index];
-                  return ListTile(
-                    dense: true,
-                    title: Text(
-                      player.name,
-                      style: TextStyle(
-                        color: player.active ? Colors.white : Colors.white38,
+                  return Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: AppColors.player(player.colorIndex),
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    trailing: Switch(
-                      value: player.active,
-                      onChanged: (_) =>
-                          provider.togglePlayerActive(index),
-                      activeColor: Colors.greenAccent,
-                      inactiveThumbColor: Colors.white38,
-                    ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(player.name,
+                            style: AppText.body(15,
+                                color: player.active
+                                    ? AppColors.fg
+                                    : AppColors.muted)),
+                      ),
+                      Switch(
+                        value: player.active,
+                        onChanged: (_) => provider.togglePlayerActive(index),
+                      ),
+                    ],
                   );
                 },
               ),
             ),
-            const Divider(color: Colors.white24, height: 20),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _controller,
                     textCapitalization: TextCapitalization.words,
-                    style: const TextStyle(color: Colors.white),
+                    style: AppText.body(15),
                     decoration: InputDecoration(
-                      hintText: AppStrings.addPlayerHint,
-                      hintStyle: const TextStyle(color: Colors.white54),
+                      hintText: AppStrings.newPlayerHint,
+                      hintStyle: AppText.body(15, color: AppColors.muted),
                       filled: true,
-                      fillColor: const Color(0xFF0F3460),
+                      fillColor: AppColors.table,
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none,
                       ),
                     ),
-                    onSubmitted: (_) => _addPlayer(context),
+                    onSubmitted: (_) => _addPlayer(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () => _addPlayer(context),
-                  icon: const Icon(Icons.person_add, color: Colors.white),
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF533483),
-                  ),
+                IconButton.filled(
+                  onPressed: _addPlayer,
+                  tooltip: AppStrings.add,
+                  icon: const Icon(Icons.person_add_alt_1),
                 ),
               ],
             ),
@@ -866,8 +606,9 @@ class _PlayerManagementDialogState extends State<_PlayerManagementDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text(AppStrings.done,
-              style: TextStyle(color: Colors.white)),
+          child: Text(AppStrings.done,
+              style: AppText.body(14,
+                  weight: FontWeight.w600, color: AppColors.amber)),
         ),
       ],
     );
