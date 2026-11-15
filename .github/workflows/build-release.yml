@@ -1,5 +1,10 @@
-name: Build & Release
+name: Release
 
+# Nur für Versionen: bei einem Tag `v*` (z. B. `git tag v1.1.0 && git push origin v1.1.0`)
+# oder manuell. Baut App Bundle (.aab) + APK, hängt beide an ein GitHub-Release
+# und lädt die .aab optional in Google Play hoch. Für eine schnelle APK ohne
+# Release gibt es den Workflow "APK bauen" (build-apk.yml).
+#
 # Benötigte Repository-Secrets (Settings → Secrets and variables → Actions):
 #   ANDROID_KEYSTORE_BASE64    Upload-Keystore (.jks) als Base64: `base64 -w0 upload-keystore.jks`
 #   ANDROID_KEYSTORE_PASSWORD  Passwort des Keystores
@@ -9,7 +14,7 @@ name: Build & Release
 #   PLAY_SERVICE_ACCOUNT_JSON  JSON-Key eines Service-Accounts mit Release-Rechten
 #
 # Optionale Repository-Variablen (Settings → Secrets and variables → Actions → Variables):
-#   VERSION_CODE_OFFSET   wird zur Run-Nummer addiert (Standard 0), falls schon höhere
+#   VERSION_CODE_OFFSET   wird zur Anzahl der Commits addiert (Standard 0), falls schon höhere
 #                         versionCodes in Play hochgeladen wurden
 #   PLAY_TRACK            internal | alpha | beta | production (Standard: internal)
 #   PLAY_RELEASE_STATUS   draft | completed (Standard: draft – solange die App in der
@@ -17,11 +22,8 @@ name: Build & Release
 
 on:
   push:
-    branches: [main]
     tags:
       - 'v*'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -41,6 +43,10 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # Fest eingestellt, damit ein neues Flutter-Release den Build nicht
+          # unbemerkt bricht. Beim Update auch android/ (Gradle, AGP, Kotlin)
+          # an die Vorlage von `flutter create` anpassen.
+          flutter-version: '3.50.0'
           cache: true
 
       - name: Install dependencies
@@ -62,6 +68,8 @@ jobs:
       signed: ${{ steps.keystore.outputs.signed }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # für die Versionsnummer (Anzahl Commits)
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -73,6 +81,10 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          # Fest eingestellt, damit ein neues Flutter-Release den Build nicht
+          # unbemerkt bricht. Beim Update auch android/ (Gradle, AGP, Kotlin)
+          # an die Vorlage von `flutter create` anpassen.
+          flutter-version: '3.50.0'
           cache: true
 
       - name: Install dependencies
@@ -109,7 +121,7 @@ jobs:
         env:
           OFFSET: ${{ vars.VERSION_CODE_OFFSET || '0' }}
         run: |
-          BUILD_NUMBER=$(( GITHUB_RUN_NUMBER + OFFSET ))
+          BUILD_NUMBER=$(( $(git rev-list --count HEAD) + OFFSET ))
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             BUILD_NAME="${GITHUB_REF_NAME#v}"
           else

@@ -83,9 +83,14 @@ flutter test
 
 ---
 
-## Release-Build & Google Play (GitHub Actions)
+## Builds mit GitHub Actions
 
-Der Workflow `.github/workflows/build-release.yml` testet, baut eine signierte **AAB** (für Google Play) und **APK** und lädt bei einem Tag `v*` optional direkt in die Play Console hoch.
+| Workflow | Wann | Ergebnis |
+|----------|------|----------|
+| **APK bauen** (`build-apk.yml`) | Push auf `main`, Pull Requests, manuell | Tests + signierte APK (ARM) als Artefakt `matrix-apk` |
+| **Release** (`build-release.yml`) | Tag `v*` oder manuell | App Bundle + APK, GitHub-Release, optional Upload in Google Play |
+
+Der Google-Play-Upload läuft nur im Release-Workflow und nur, wenn das Secret `PLAY_SERVICE_ACCOUNT_JSON` gesetzt ist – sonst wird er übersprungen.
 
 ### 1. Secrets hinterlegen
 
@@ -105,7 +110,7 @@ Optionale **Variables** (gleiche Seite, Tab *Variables*):
 
 | Variable | Standard | Zweck |
 |----------|----------|-------|
-| `VERSION_CODE_OFFSET` | `0` | Wird zur Run-Nummer addiert, falls in Play schon höhere versionCodes existieren |
+| `VERSION_CODE_OFFSET` | `0` | Wird zur Anzahl der Commits addiert, falls in Play schon höhere versionCodes existieren |
 | `PLAY_TRACK` | `internal` | `internal`, `alpha`, `beta` oder `production` |
 | `PLAY_RELEASE_STATUS` | `draft` | `completed` erst, wenn die App in der Play Console bereits veröffentlicht ist |
 
@@ -116,11 +121,11 @@ git tag v1.1.0
 git push origin v1.1.0
 ```
 
-Der Tag bestimmt den `versionName` (`1.1.0`), der `versionCode` ist die fortlaufende Workflow-Run-Nummer. Ohne Tag (Push auf `main`, PRs oder manuell über *Actions → Build & Release → Run workflow*) werden die Dateien nur als Workflow-Artefakt bereitgestellt. Fehlen die Signing-Secrets, wird mit dem Debug-Key signiert – bei einem Release-Tag bricht der Build dann ab.
+Der Tag bestimmt den `versionName` (`1.1.0`). Der `versionCode` ist in beiden Workflows die Anzahl der Commits – er steigt also immer, und eine APK aus „APK bauen“ lässt sich über eine Release-APK installieren und umgekehrt. Fehlen die Signing-Secrets, bricht ein Release-Tag ab; „APK bauen“ signiert dann mit dem Debug-Key.
 
 ### APK herunterladen
 
-Jeder Lauf des Workflows (Pull Request, Push auf `main`, manueller Start) legt unter *Actions → Lauf auswählen → Artifacts* die Datei `matrix-release` ab. Darin steckt `flutter-apk/app-release.apk` (ARM, für alle gängigen Handys) und die `.aab` für Google Play. Bei einem Tag `v*` hängen beide Dateien zusätzlich am GitHub-Release.
+*Actions → APK bauen → Lauf auswählen → Artifacts → `matrix-apk`*. Darin liegt `matrix-<version>-<build>-arm.apk` für alle gängigen Android-Handys. Manuell starten: *Actions → APK bauen → Run workflow*.
 
 ### Lokal signiert bauen
 
